@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="돌림판 게임">
+  <title>돌림판 게임</title>
+  <style>
+    /* 폰트 적용: assets/fonts/Jua-Regular.ttf */
+    @font-face {
+      font-family: 'Jua';
+      src: url('assets/fonts/Jua-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      /* 세로 방향 스트라이프, 간격 50px */
+      background: repeating-linear-gradient(
+        90deg,
+        #ff9a9e,
+        #ff9a9e 50px,
+        #fad0c4 50px,
+        #fad0c4 100px
+      );
+      font-family: 'Jua', sans-serif;
+      overflow: hidden;
+      position: relative;
+      height: 100vh;
+    }
+    /* 타이틀: 상단 60px에 위치 */
+    .title {
+      position: absolute;
+      top: 60px;
+      width: 100%;
+      text-align: center;
+      font-size: 3em;
+      animation: pulse 2s infinite;
+      color: #ff4081;
+      text-shadow: 2px 2px #fff;
+      margin: 0;
+      padding: 0;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    /* 설정 버튼 (불투명도를 0.2로 낮춤) */
+    #settingsButton {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 2em;
+      opacity: 0.2;
+      cursor: pointer;
+      z-index: 101;
+    }
+    /* 돌림판 바로 위에 배치할 캐릭터 이미지 */
+    #aboveWheelCharacter {
+      position: absolute;
+      left: 50%;
+      top: calc(50% - 250px - 160px);
+      transform: translateX(-50%);
+      width: 150px;
+      height: auto;
+      z-index: 103;
+    }
+    /* 중앙 돌림판 컨테이너 (500×500px, 중앙 배치) */
+    .wheel-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+    }
+    #wheelCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    /* 포인터: 상단 중앙에 배치, top -10px, 180도 회전 */
+    #pointer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%) rotate(180deg);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 30px solid #8B0000;
+    }
+    /* 모달 오버레이: Flexbox로 중앙 정렬 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 110;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    /* 결과 모달: 가로 500px, 세로 300px, Dialog.svg 배경 */
+    #resultModal .modal-content {
+      width: 500px;
+      height: 300px;
+      background: url('assets/svg/Dialog.svg') no-repeat center center;
+      background-size: 100% 100%;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    /* 설정 모달: 뒷배경 흰색, 패딩 20px */
+    #settingsModal .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .modal-content h1 {
+      margin: 0;
+      font-size: 2em;
+      color: #28a745;
+    }
+    .modal-content p {
+      font-size: 1.5em;
+      margin: 20px 0;
+    }
+    /* 결과 모달 내 당첨 텍스트 크게 */
+    #resultModal p {
+      font-size: 3em;
+    }
+    .close {
+      /* 결과 모달의 x 버튼 삭제 */
+      display: none;
+    }
+    /* 설정 폼 스타일 */
+    #settingsForm label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    #settingsForm textarea,
+    #settingsForm input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    #settingsForm button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #settingsForm button:hover { background-color: #218838; }
+    /* 버튼 컨테이너: 500px 너비, 중앙 정렬, padding 50px 적용 */
+    .button-container {
+      position: absolute;
+      top: calc(50% + 260px);
+      left: 50%;
+      transform: translate(-50%, 0);
+      width: 500px;
+      text-align: center;
+      z-index: 104;
+      padding: 50px;
+    }
+    /* "돌리기!" 버튼: width 100%로 하여 좌우 길이를 최대한 길게, 전역 폰트 적용 */
+    #spinButton {
+      width: 100%;
+      padding: 15px 30px;
+      font-size: 2em;
+      font-family: 'Jua', sans-serif; /* 설정한 폰트 적용 */
+      border: none;
+      background-color: #ff4081;
+      color: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+<body>
+  <!-- 타이틀 -->
+  <h1 class="title">돌려돌려돌림판!</h1>
+  
+  <!-- 설정 버튼 -->
+  <div id="settingsButton">⚙</div>
+  
+  <!-- 돌림판 바로 위 캐릭터 이미지 -->
+  <img id="aboveWheelCharacter" src="assets/svg/above-character.svg" alt="Above Wheel Character">
+  
+  <!-- 중앙 돌림판 -->
+  <div class="wheel-container">
+    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    <div id="pointer" class="pointer"></div>
+  </div>
+  
+  <!-- 버튼 컨테이너 안의 "돌리기!" 버튼 -->
+  <div class="button-container">
+    <button id="spinButton">돌리기!</button>
+  </div>
+  
+  <!-- 결과 모달 (Dialog.svg 배경 적용) -->
+  <div id="resultModal" class="modal">
+    <div class="modal-content">
+      <h1>축하합니다!</h1>
+      <p id="prizeText"></p>
+    </div>
+  </div>
+  
+  <!-- 설정 모달 (뒷배경 흰색, 패딩 적용) -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content">
+      <span id="closeSettings" class="close">&times;</span>
+      <h1>설정</h1>
+      <form id="settingsForm">
+         <label for="itemsInput">아이템 목록 (콤마로 구분):</label>
+         <textarea id="itemsInput" rows="3"></textarea>
+         <label for="durationInput">돌림판 회전 시간 (ms):</label>
+         <input type="number" id="durationInput" min="1000" step="100">
+         <label for="textSizeInput">돌림판 텍스트 크기 (px):</label>
+         <input type="number" id="textSizeInput" min="10" step="1">
+         <label for="colorsInput">돌림판 섹터 배경 색상 (콤마로 구분, 색상코드):</label>
+         <input type="text" id="colorsInput">
+         <label for="pointerColorInput">포인터 색상:</label>
+         <input type="color" id="pointerColorInput">
+         <button type="submit">저장</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- 음원 (파일 경로에 맞게 수정) -->
+  <audio id="spinSound" src="assets/wav/spin.mp3"></audio>
+  <audio id="winSound" src="assets/wav/win.wav"></audio>
+  
+  <script>
+    // 기본 아이템 문자열
+    const defaultItems = "엽서 2장,엽서 3장,스티커 1장,스티커 2장,포스터 1장,책갈피 1개,스티커 1장,엽서 2장,책갈피 2개";
+    // localStorage의 "items" 키가 없으면 기본값 저장
+    if (!localStorage.getItem("items")) {
+      localStorage.setItem("items", defaultItems);
+    }
+    // localStorage의 "items" 값을 읽어서 prizes 배열로 설정
+    let prizes = localStorage.getItem("items")
+                   .split(',')
+                   .map(item => item.trim())
+                   .filter(item => item !== "");
+    
+    // 돌림판 회전 시간은 "setting_duration" 키로 관리 (기본 4500ms)
+    if (!localStorage.getItem("setting_duration")) {
+      localStorage.setItem("setting_duration", "4500");
+    }
+    let spinDuration = parseInt(localStorage.getItem("setting_duration"));
+    
+    // 돌림판 텍스트 크기는 "setting_fontsize" 키로 관리 (기본 30px)
+    if (!localStorage.getItem("setting_fontsize")) {
+      localStorage.setItem("setting_fontsize", "30");
+    }
+    let textSize = parseInt(localStorage.getItem("setting_fontsize"));
+    
+    let colors = ["#FF6B6B", "#FF8E72", "#FFCA3A", "#8AC926", "#1982C4", "#6A4C93"];
+    let pointerColor = "#8B0000"; // 기본 포인터 색상
+    
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const cw = canvas.width, ch = canvas.height;
+    const centerX = cw / 2, centerY = ch / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    let currentRotation = 0;
+    let isSpinning = false;
+    
+    const spinSound = document.getElementById('spinSound');
+    const winSound = document.getElementById('winSound');
+    
+    const resultModal = document.getElementById('resultModal');
+    const prizeTextElem = document.getElementById('prizeText');
+    
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettings');
+    const settingsForm = document.getElementById('settingsForm');
+    const itemsInput = document.getElementById('itemsInput');
+    const durationInput = document.getElementById('durationInput');
+    const textSizeInput = document.getElementById('textSizeInput');
+    const colorsInput = document.getElementById('colorsInput');
+    const pointerColorInput = document.getElementById('pointerColorInput');
+    const settingsButton = document.getElementById('settingsButton');
+    const pointerElem = document.getElementById('pointer');
+    const spinButton = document.getElementById('spinButton');
+    
+    // 설정 모달 닫기 이벤트 (설정 모달만)
+    closeSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+    window.addEventListener('click', (event) => {
+      if (event.target === resultModal) resultModal.style.display = 'none';
+      if (event.target === settingsModal) settingsModal.style.display = 'none';
+    });
+    
+    // 설정 모달 열기 및 현재 값 표시
+    settingsButton.addEventListener('click', () => {
+      itemsInput.value = localStorage.getItem("items");
+      durationInput.value = spinDuration;
+      textSizeInput.value = textSize;
+      colorsInput.value = colors.join(', ');
+      pointerColorInput.value = pointerColor;
+      settingsModal.style.display = 'flex';
+    });
+    
+    // 설정 폼 제출: 각 설정값 업데이트 및 localStorage 업데이트
+    settingsForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const itemsStr = itemsInput.value;
+      if (itemsStr.trim() !== "") {
+        prizes = itemsStr.split(',').map(item => item.trim()).filter(item => item !== "");
+        localStorage.setItem("items", itemsStr);
+      }
+      const durationVal = parseInt(durationInput.value);
+      if (!isNaN(durationVal) && durationVal > 0) { 
+        spinDuration = durationVal; 
+        localStorage.setItem("setting_duration", durationVal.toString());
+      }
+      const textSizeVal = parseInt(textSizeInput.value);
+      if (!isNaN(textSizeVal) && textSizeVal > 0) { 
+        textSize = textSizeVal; 
+        localStorage.setItem("setting_fontsize", textSizeVal.toString());
+      }
+      const colorsStr = colorsInput.value;
+      if (colorsStr.trim() !== "") {
+        colors = colorsStr.split(',').map(color => color.trim()).filter(color => color !== "");
+      }
+      pointerColor = pointerColorInput.value;
+      pointerElem.style.borderBottomColor = pointerColor;
+      settingsModal.style.display = 'none';
+      drawWheel(currentRotation);
+    });
+    
+    // 돌림판 그리기 함수
+    function drawWheel(rotation) {
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      const numSegments = prizes.length;
+      const arcSize = 2 * Math.PI / numSegments;
+      for (let i = 0; i < numSegments; i++) {
+        const startAngle = i * arcSize;
+        const endAngle = startAngle + arcSize;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle, false);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.save();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold " + textSize + "px sans-serif";
+        const textAngle = startAngle + arcSize / 2;
+        ctx.rotate(textAngle);
+        ctx.textAlign = "right";
+        ctx.fillText(prizes[i], radius - 10, 10);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    
+    drawWheel(currentRotation);
+    
+    function easeOutQuad(t) { return t * (2 - t); }
+    function mod(n, m) { return ((n % m) + m) % m; }
+    
+    function spinWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+      
+      const prizeIndex = Math.floor(Math.random() * prizes.length);
+      const extraSpins = 3 + Math.floor(Math.random() * 3);
+      const arcSize = 2 * Math.PI / prizes.length;
+      const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
+      const adjustment = mod(-Math.PI/2 - targetSectorCenter - currentRotation, 2 * Math.PI);
+      const targetRotation = currentRotation + extraSpins * 2 * Math.PI + adjustment;
+      
+      const startRotation = currentRotation;
+      let startTime = null;
+      spinSound.loop = true;
+      spinSound.currentTime = 0;
+      spinSound.play();
+      
+      function animate(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const t = Math.min(elapsed / spinDuration, 1);
+        const easedT = easeOutQuad(t);
+        currentRotation = startRotation + (targetRotation - startRotation) * easedT;
+        drawWheel(currentRotation);
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          currentRotation = targetRotation;
+          drawWheel(currentRotation);
+          isSpinning = false;
+          spinSound.pause();
+          spinSound.currentTime = 0;
+          winSound.currentTime = 0;
+          winSound.play();
+          prizeTextElem.textContent = prizes[prizeIndex];
+          resultModal.style.display = 'flex';
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+    
+    canvas.addEventListener('click', spinWheel);
+    spinButton.addEventListener('click', spinWheel);
+  </script>
+</body>
+</html>
