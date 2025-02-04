@@ -58,7 +58,7 @@
       cursor: pointer;
       z-index: 101;
     }
-    /* 돌림판 바로 위에 배치할 캐릭터 이미지 (크기를 80%로, top 위치를 좀 더 내려서) */
+    /* 돌림판 바로 위에 배치할 캐릭터 이미지 (크기를 80%로, top 위치 약간 더 내려서) */
     #aboveWheelCharacter {
       position: absolute;
       left: 50%;
@@ -123,7 +123,7 @@
       justify-content: center;
       align-items: center;
     }
-    /* 보이지 않는 닫기 영역 (Dialog.svg의 우측 상단, 전체 크기의 위 30%, 우측 15%) */
+    /* 보이지 않는 닫기 영역: Dialog.svg 전체 크기의 우측 상단 15% x 30% 영역 */
     #dialogClose {
       position: absolute;
       top: 0;
@@ -137,6 +137,7 @@
       background-color: #fff;
       padding: 20px;
       border-radius: 10px;
+      position: relative;
     }
     .modal-content h1 {
       margin: 0;
@@ -152,7 +153,7 @@
       font-size: 3em;
     }
     .close {
-      /* 결과 모달의 x 버튼은 기본적으로 삭제 */
+      /* 결과 모달의 x 버튼은 기본적으로 삭제 (닫기 영역 사용) */
       display: none;
     }
     /* 설정 폼 스타일 */
@@ -176,6 +177,13 @@
       border-radius: 5px;
     }
     #settingsForm button:hover { background-color: #218838; }
+    /* 설정 모달 하단 버전 정보 */
+    .version {
+      text-align: center;
+      font-size: 0.8em;
+      color: #aaa;
+      margin-top: 10px;
+    }
     /* 버튼 컨테이너: 500px 너비, 중앙 정렬, padding 50px 적용 */
     .button-container {
       position: absolute;
@@ -226,7 +234,7 @@
   <!-- 결과 모달 (Dialog.svg 배경 적용) -->
   <div id="resultModal" class="modal">
     <div class="modal-content">
-      <!-- 보이지 않는 닫기 영역 -->
+      <!-- 보이지 않는 닫기 영역 (우측 상단 15% x 30%) -->
       <div id="dialogClose"></div>
       <h1>축하합니다!</h1>
       <p id="prizeText"></p>
@@ -253,10 +261,12 @@
          <input type="text" id="weightsInput">
          <button type="submit">저장</button>
       </form>
+      <div class="version">v1.0.1</div>
     </div>
   </div>
   
   <!-- 음원 (파일 경로에 맞게 수정) -->
+  <!-- spinSound를 spin_short.wav로 변경 -->
   <audio id="spinSound" src="assets/wav/spin_short.mp3"></audio>
   <audio id="winSound" src="assets/wav/win.wav"></audio>
   
@@ -280,7 +290,7 @@
                    .map(item => item.trim())
                    .filter(item => item !== "");
     
-    // 돌림판 회전 시간은 "setting_duration" 키로 관리 (기본 4500ms)
+    // 돌림판 회전 시간은 "setting_duration" 키로 관리 (기본 4000ms)
     if (!localStorage.getItem("setting_duration")) {
       localStorage.setItem("setting_duration", "4000");
     }
@@ -329,7 +339,7 @@
     const pointerElem = document.getElementById('pointer');
     const spinButton = document.getElementById('spinButton');
     
-    // 결과 모달 내 보이지 않는 닫기 영역
+    // 결과 모달 내 보이지 않는 닫기 영역 구현 (Dialog.svg 우측 상단, 전체의 15% x 30%)
     const dialogClose = document.getElementById("dialogClose");
     if (dialogClose) {
       dialogClose.addEventListener("click", () => {
