@@ -58,13 +58,13 @@
       cursor: pointer;
       z-index: 101;
     }
-    /* 돌림판 바로 위에 배치할 캐릭터 이미지 */
+    /* 돌림판 바로 위에 배치할 캐릭터 이미지 (크기를 80%로, top 위치를 좀 더 내려서) */
     #aboveWheelCharacter {
       position: absolute;
       left: 50%;
-      top: calc(50% - 250px - 160px);
+      top: calc(50% - 250px - 120px);
       transform: translateX(-50%);
-      width: 150px;
+      width: 120px;
       height: auto;
       z-index: 103;
     }
@@ -123,6 +123,15 @@
       justify-content: center;
       align-items: center;
     }
+    /* 보이지 않는 닫기 영역 (Dialog.svg의 우측 상단, 전체 크기의 위 30%, 우측 15%) */
+    #dialogClose {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 15%;
+      height: 30%;
+      cursor: pointer;
+    }
     /* 설정 모달: 뒷배경 흰색, 패딩 20px */
     #settingsModal .modal-content {
       background-color: #fff;
@@ -143,7 +152,7 @@
       font-size: 3em;
     }
     .close {
-      /* 결과 모달의 x 버튼 삭제 */
+      /* 결과 모달의 x 버튼은 기본적으로 삭제 */
       display: none;
     }
     /* 설정 폼 스타일 */
@@ -170,7 +179,7 @@
     /* 버튼 컨테이너: 500px 너비, 중앙 정렬, padding 50px 적용 */
     .button-container {
       position: absolute;
-      top: calc(50% + 260px);
+      top: calc(50% + 220px);
       left: 50%;
       transform: translate(-50%, 0);
       width: 500px;
@@ -183,7 +192,7 @@
       width: 100%;
       padding: 15px 30px;
       font-size: 2em;
-      font-family: 'Jua', sans-serif; /* 설정한 폰트 적용 */
+      font-family: 'Jua', sans-serif;
       border: none;
       background-color: #ff4081;
       color: #fff;
@@ -217,6 +226,8 @@
   <!-- 결과 모달 (Dialog.svg 배경 적용) -->
   <div id="resultModal" class="modal">
     <div class="modal-content">
+      <!-- 보이지 않는 닫기 영역 -->
+      <div id="dialogClose"></div>
       <h1>축하합니다!</h1>
       <p id="prizeText"></p>
     </div>
@@ -238,6 +249,8 @@
          <input type="text" id="colorsInput">
          <label for="pointerColorInput">포인터 색상:</label>
          <input type="color" id="pointerColorInput">
+         <label for="weightsInput">돌림판 아이템 확률 (콤마로 구분):</label>
+         <input type="text" id="weightsInput">
          <button type="submit">저장</button>
       </form>
     </div>
@@ -250,10 +263,17 @@
   <script>
     // 기본 아이템 문자열
     const defaultItems = "엽서 2장,엽서 3장,스티커 1장,스티커 2장,포스터 1장,책갈피 1개,스티커 1장,엽서 2장,책갈피 2개";
-    // localStorage의 "items" 키가 없으면 기본값 저장
+    // 기본 가중치 문자열 (모든 항목에 대해 동일한 기본값: 1)
+    const defaultWeights = "1,1,1,1,1,1,1,1,1";
+    
+    // localStorage에 "items"와 "setting_weights" 키가 없으면 기본값 저장
     if (!localStorage.getItem("items")) {
       localStorage.setItem("items", defaultItems);
     }
+    if (!localStorage.getItem("setting_weights")) {
+      localStorage.setItem("setting_weights", defaultWeights);
+    }
+    
     // localStorage의 "items" 값을 읽어서 prizes 배열로 설정
     let prizes = localStorage.getItem("items")
                    .split(',')
@@ -271,6 +291,12 @@
       localStorage.setItem("setting_fontsize", "30");
     }
     let textSize = parseInt(localStorage.getItem("setting_fontsize"));
+    
+    // 돌림판 확률(가중치) 배열은 "setting_weights" 키로 관리
+    let weights = localStorage.getItem("setting_weights")
+                    .split(',')
+                    .map(w => parseFloat(w.trim()))
+                    .filter(w => !isNaN(w));
     
     let colors = ["#FF6B6B", "#FF8E72", "#FFCA3A", "#8AC926", "#1982C4", "#6A4C93"];
     let pointerColor = "#8B0000"; // 기본 포인터 색상
@@ -298,9 +324,18 @@
     const textSizeInput = document.getElementById('textSizeInput');
     const colorsInput = document.getElementById('colorsInput');
     const pointerColorInput = document.getElementById('pointerColorInput');
+    const weightsInput = document.getElementById('weightsInput');
     const settingsButton = document.getElementById('settingsButton');
     const pointerElem = document.getElementById('pointer');
     const spinButton = document.getElementById('spinButton');
+    
+    // 결과 모달 내 보이지 않는 닫기 영역
+    const dialogClose = document.getElementById("dialogClose");
+    if (dialogClose) {
+      dialogClose.addEventListener("click", () => {
+        resultModal.style.display = "none";
+      });
+    }
     
     // 설정 모달 닫기 이벤트 (설정 모달만)
     closeSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
@@ -316,6 +351,7 @@
       textSizeInput.value = textSize;
       colorsInput.value = colors.join(', ');
       pointerColorInput.value = pointerColor;
+      weightsInput.value = localStorage.getItem("setting_weights");
       settingsModal.style.display = 'flex';
     });
     
@@ -343,11 +379,16 @@
       }
       pointerColor = pointerColorInput.value;
       pointerElem.style.borderBottomColor = pointerColor;
+      const weightsStr = weightsInput.value;
+      if (weightsStr.trim() !== "") {
+        weights = weightsStr.split(',').map(w => parseFloat(w.trim())).filter(w => !isNaN(w));
+        localStorage.setItem("setting_weights", weightsStr);
+      }
       settingsModal.style.display = 'none';
       drawWheel(currentRotation);
     });
     
-    // 돌림판 그리기 함수
+    // 돌림판 그리기 함수 (UI상 섹터는 모두 동일하게 분할)
     function drawWheel(rotation) {
       ctx.clearRect(0, 0, cw, ch);
       ctx.save();
@@ -384,11 +425,23 @@
     function easeOutQuad(t) { return t * (2 - t); }
     function mod(n, m) { return ((n % m) + m) % m; }
     
+    // 가중치 배열을 기반으로 weighted random 선택 함수
+    function weightedRandom(weights) {
+      const total = weights.reduce((sum, w) => sum + w, 0);
+      let random = Math.random() * total;
+      for (let i = 0; i < weights.length; i++) {
+        if (random < weights[i]) return i;
+        random -= weights[i];
+      }
+      return weights.length - 1;
+    }
+    
     function spinWheel() {
       if (isSpinning) return;
       isSpinning = true;
       
-      const prizeIndex = Math.floor(Math.random() * prizes.length);
+      // weightedRandom 함수를 사용하여 prizeIndex 선택
+      const prizeIndex = weightedRandom(weights);
       const extraSpins = 3 + Math.floor(Math.random() * 3);
       const arcSize = 2 * Math.PI / prizes.length;
       const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
