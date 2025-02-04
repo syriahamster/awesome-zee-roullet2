@@ -132,7 +132,7 @@
       height: 30%;
       cursor: pointer;
     }
-    /* 설정 모달: 뒷배경 흰색, 패딩 20px */
+    /* 설정 모달: 뒷배경 흰색, 패딩 20px, 하단에 버전정보 표시 */
     #settingsModal .modal-content {
       background-color: #fff;
       padding: 20px;
@@ -241,7 +241,7 @@
     </div>
   </div>
   
-  <!-- 설정 모달 (뒷배경 흰색, 패딩 적용) -->
+  <!-- 설정 모달 (뒷배경 흰색, 패딩 적용, 하단에 버전 정보 표시) -->
   <div id="settingsModal" class="modal">
     <div class="modal-content">
       <span id="closeSettings" class="close">&times;</span>
@@ -259,14 +259,16 @@
          <input type="color" id="pointerColorInput">
          <label for="weightsInput">돌림판 아이템 확률 (콤마로 구분):</label>
          <input type="text" id="weightsInput">
+         <label for="reverseDurationInput">돌림판 반대쪽 회전 딜레이 (ms):</label>
+         <input type="number" id="reverseDurationInput" min="0" step="10">
          <button type="submit">저장</button>
       </form>
-      <div class="version">v1.0.2</div>
+      <div class="version">v1.0.3</div>
     </div>
   </div>
   
   <!-- 음원 (파일 경로에 맞게 수정) -->
-  <!-- spinSound를 spin_short.wav로 변경 -->
+  <!-- spinSound를 spin_short.mp3로 변경 -->
   <audio id="spinSound" src="assets/wav/spin_short.mp3" preload="auto"></audio>
   <audio id="winSound" src="assets/wav/win.wav"></audio>
   
@@ -275,13 +277,18 @@
     const defaultItems = "엽서 2장,엽서 3장,스티커 1장,스티커 2장,포스터 1장,책갈피 1개,스티커 1장,엽서 2장,책갈피 2개";
     // 기본 가중치 문자열 (모든 항목에 대해 동일한 기본값: 1)
     const defaultWeights = "1,1,1,1,1,1,1,1,1";
+    // 기본 reverseDuration 값 (ms)
+    const defaultReverseDuration = "100";
     
-    // localStorage에 "items"와 "setting_weights" 키가 없으면 기본값 저장
+    // localStorage에 "items", "setting_weights", "setting_reverseDuration" 키가 없으면 기본값 저장
     if (!localStorage.getItem("items")) {
       localStorage.setItem("items", defaultItems);
     }
     if (!localStorage.getItem("setting_weights")) {
       localStorage.setItem("setting_weights", defaultWeights);
+    }
+    if (!localStorage.getItem("setting_reverseDuration")) {
+      localStorage.setItem("setting_reverseDuration", defaultReverseDuration);
     }
     
     // localStorage의 "items" 값을 읽어서 prizes 배열로 설정
@@ -301,6 +308,9 @@
       localStorage.setItem("setting_fontsize", "30");
     }
     let textSize = parseInt(localStorage.getItem("setting_fontsize"));
+    
+    // 돌림판 반대쪽 회전 딜레이는 "setting_reverseDuration" 키로 관리 (기본 100ms)
+    let reverseDuration = parseInt(localStorage.getItem("setting_reverseDuration"));
     
     // 돌림판 확률(가중치) 배열은 "setting_weights" 키로 관리
     let weights = localStorage.getItem("setting_weights")
@@ -335,6 +345,7 @@
     const colorsInput = document.getElementById('colorsInput');
     const pointerColorInput = document.getElementById('pointerColorInput');
     const weightsInput = document.getElementById('weightsInput');
+    const reverseDurationInput = document.getElementById('reverseDurationInput');
     const settingsButton = document.getElementById('settingsButton');
     const pointerElem = document.getElementById('pointer');
     const spinButton = document.getElementById('spinButton');
@@ -362,6 +373,7 @@
       colorsInput.value = colors.join(', ');
       pointerColorInput.value = pointerColor;
       weightsInput.value = localStorage.getItem("setting_weights");
+      reverseDurationInput.value = reverseDuration;
       settingsModal.style.display = 'flex';
     });
     
@@ -393,6 +405,11 @@
       if (weightsStr.trim() !== "") {
         weights = weightsStr.split(',').map(w => parseFloat(w.trim())).filter(w => !isNaN(w));
         localStorage.setItem("setting_weights", weightsStr);
+      }
+      const reverseVal = parseInt(reverseDurationInput.value);
+      if (!isNaN(reverseVal) && reverseVal >= 0) {
+        reverseDuration = reverseVal;
+        localStorage.setItem("setting_reverseDuration", reverseVal.toString());
       }
       settingsModal.style.display = 'none';
       drawWheel(currentRotation);
@@ -450,42 +467,63 @@
       if (isSpinning) return;
       isSpinning = true;
       
-      // weightedRandom 함수를 사용하여 prizeIndex 선택
-      const prizeIndex = weightedRandom(weights);
-      const extraSpins = 3 + Math.floor(Math.random() * 3);
-      const arcSize = 2 * Math.PI / prizes.length;
-      const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
-      const adjustment = mod(-Math.PI/2 - targetSectorCenter - currentRotation, 2 * Math.PI);
-      const targetRotation = currentRotation + extraSpins * 2 * Math.PI + adjustment;
-      
+      // 먼저, reverseDuration(ms) 동안 반대 방향으로 돌리는 애니메이션 추가
+      const reverseAngle = -0.5;  
       const startRotation = currentRotation;
-      let startTime = null;
-      spinSound.loop = true;
+      let reverseStartTime = null;
       spinSound.currentTime = 0;
       spinSound.play();
       
-      function animate(timestamp) {
-        if (!startTime) startTime = timestamp;
-        const elapsed = timestamp - startTime;
-        const t = Math.min(elapsed / spinDuration, 1);
-        const easedT = easeOutQuad(t);
-        currentRotation = startRotation + (targetRotation - startRotation) * easedT;
+      function animateReverse(timestamp) {
+        if (!reverseStartTime) reverseStartTime = timestamp;
+        const elapsed = timestamp - reverseStartTime;
+        const t = Math.min(elapsed / reverseDuration, 1);
+        currentRotation = startRotation + reverseAngle * t;
         drawWheel(currentRotation);
         if (t < 1) {
-          requestAnimationFrame(animate);
+          requestAnimationFrame(animateReverse);
         } else {
-          currentRotation = targetRotation;
-          drawWheel(currentRotation);
-          isSpinning = false;
-          spinSound.pause();
-          spinSound.currentTime = 0;
-          winSound.currentTime = 0;
-          winSound.play();
-          prizeTextElem.textContent = prizes[prizeIndex];
-          resultModal.style.display = 'flex';
+          // 반대쪽 회전 애니메이션 완료 후 본 회전 시작
+          spinMain();
         }
       }
-      requestAnimationFrame(animate);
+      
+      function spinMain() {
+        const prizeIndex = weightedRandom(weights);
+        const extraSpins = 3 + Math.floor(Math.random() * 3);
+        const arcSize = 2 * Math.PI / prizes.length;
+        const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
+        const adjustment = mod(-Math.PI/2 - targetSectorCenter - currentRotation, 2 * Math.PI);
+        const targetRotation = currentRotation + extraSpins * 2 * Math.PI + adjustment;
+        
+        const mainStartRotation = currentRotation;
+        let mainStartTime = null;
+        
+        function animateMain(timestamp) {
+          if (!mainStartTime) mainStartTime = timestamp;
+          const elapsed = timestamp - mainStartTime;
+          const t = Math.min(elapsed / spinDuration, 1);
+          const easedT = easeOutQuad(t);
+          currentRotation = mainStartRotation + (targetRotation - mainStartRotation) * easedT;
+          drawWheel(currentRotation);
+          if (t < 1) {
+            requestAnimationFrame(animateMain);
+          } else {
+            currentRotation = targetRotation;
+            drawWheel(currentRotation);
+            isSpinning = false;
+            spinSound.pause();
+            spinSound.currentTime = 0;
+            winSound.currentTime = 0;
+            winSound.play();
+            prizeTextElem.textContent = prizes[prizeIndex];
+            resultModal.style.display = 'flex';
+          }
+        }
+        requestAnimationFrame(animateMain);
+      }
+      
+      requestAnimationFrame(animateReverse);
     }
     
     canvas.addEventListener('click', spinWheel);
