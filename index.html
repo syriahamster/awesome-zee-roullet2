@@ -257,7 +257,7 @@
   </div>
   
   <!-- 음원 (파일 경로에 맞게 수정) -->
-  <audio id="spinSound" src="assets/wav/spin.mp3"></audio>
+  <audio id="spinSound" src="assets/wav/spin_short.mp3"></audio>
   <audio id="winSound" src="assets/wav/win.wav"></audio>
   
   <script>
@@ -282,7 +282,7 @@
     
     // 돌림판 회전 시간은 "setting_duration" 키로 관리 (기본 4500ms)
     if (!localStorage.getItem("setting_duration")) {
-      localStorage.setItem("setting_duration", "4500");
+      localStorage.setItem("setting_duration", "4000");
     }
     let spinDuration = parseInt(localStorage.getItem("setting_duration"));
     
