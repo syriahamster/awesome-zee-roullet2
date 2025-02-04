@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Lightweight HTML POS with Export/Import and Modals</title>
+  <style>
+    /* 기본 스타일 */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background-color: #333; color: #fff; padding: 10px; }
+    header h1 { margin: 0 0 10px 0; }
+    /* Nav bar: 왼쪽 모드버튼, 오른쪽 export/import 버튼 */
+    nav { display: flex; justify-content: space-between; align-items: center; }
+    nav button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
+    #nav-export-import button { margin-right: 5px; }
+    .section { padding: 20px; display: none; }
+    .active { display: block; }
+    
+    /* 공용 아이템 리스트 스타일 */
+    .item-list { margin-top: 20px; }
+    .item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; text-align: center; }
+    .item img { max-width: 100%; height: auto; margin-bottom: 5px; }
+    
+    /* 판매 모드: available items grid 스타일 */
+    #salesContainer {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+    }
+    #availableItems {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    /* 판매 모드: 각 아이템은 클릭 시 장바구니에 추가 */
+    #availableItems .item {
+      cursor: pointer;
+      border: 1px solid #aaa;
+      padding: 10px;
+      transition: background-color 0.2s;
+    }
+    #availableItems .item:hover {
+      background-color: #f0f0f0;
+    }
+    
+    /* 판매 모드: 장바구니 영역 스타일 (50% width) */
+    #cartContainer {
+      width: 50%;
+      min-width: 200px;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #cartContainer h3 { margin-top: 0; }
+    .cart-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
+    .cart-item button { margin: 0 2px; }
+    
+    /* 판매 버튼을 크게 */
+    #sellBtn {
+      font-size: 1.5em;
+      padding: 10px 20px;
+      margin-top: 10px;
+    }
+    
+    /* Modal styling */
+    .modal {
+      display: none; 
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 400px;
+    }
+    .modal-content label {
+      display: block;
+      margin-top: 10px;
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    .modal-content button {
+      padding: 8px 12px;
+      margin-top: 15px;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Lightweight HTML POS</h1>
+    <nav>
+      <div id="nav-modes">
+        <button id="editModeBtn">편집 모드</button>
+        <button id="salesModeBtn">판매 모드</button>
+        <button id="historyModeBtn">판매 히스토리</button>
+      </div>
+      <div id="nav-export-import">
+        <button id="exportBtn">데이터 Export</button>
+        <button id="importBtn">데이터 Import</button>
+        <input type="file" id="importFile" accept="application/json" style="display: none;">
+      </div>
+    </nav>
+  </header>
+
+  <!-- 편집 모드 -->
+  <div id="editMode" class="section active">
+    <h2>편집 모드</h2>
+    <button id="openNewItemModalBtn">새 아이템 추가</button>
+    <div id="itemsList" class="item-list">
+      <!-- 아이템 목록을 grid로 표시 -->
+    </div>
+  </div>
+
+  <!-- 판매 모드 -->
+  <div id="salesMode" class="section">
+    <h2>판매 모드</h2>
+    <div id="salesContainer">
+      <div id="availableItems">
+        <!-- 사용 가능한 상품 grid -->
+      </div>
+      <div id="cartContainer">
+        <h3>장바구니</h3>
+        <div id="cart" class="cart-list"></div>
+        <div>
+          <strong>총 합계:</strong> <span id="totalPrice">0</span> 원
+        </div>
+        <button id="sellBtn">판매</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 판매 히스토리 -->
+  <div id="historyMode" class="section">
+    <h2>판매 히스토리</h2>
+    <div id="historyList" class="history-list">
+      <!-- 날짜별 영수증 표시 -->
+    </div>
+  </div>
+
+  <!-- Modal for Add/Edit Item -->
+  <div id="itemModal" class="modal">
+    <div class="modal-content">
+      <h2 id="itemModalTitle">아이템 추가</h2>
+      <form id="itemModalForm">
+        <label for="modalItemName">상품 이름:</label>
+        <input type="text" id="modalItemName" required>
+        <label for="modalItemPrice">상품 가격:</label>
+        <input type="number" id="modalItemPrice" required min="0">
+        <label for="modalItemImageFile">상품 이미지 (선택):</label>
+        <input type="file" id="modalItemImageFile" accept="image/*">
+        <div style="text-align: right;">
+          <button type="button" id="modalCancelBtn">취소</button>
+          <button type="submit" id="modalSaveBtn">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /***** IndexedDB 초기화 *****/
+    let db;
+    const request = indexedDB.open("posDB", 1);
+    request.onupgradeneeded = function(event) {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains("images")) {
+        db.createObjectStore("images", { keyPath: "id" });
+      }
+    };
+    request.onsuccess = function(event) {
+      db = event.target.result;
+    };
+    request.onerror = function(event) {
+      console.error("IndexedDB error:", event);
+    };
+
+    // IndexedDB에 이미지 저장 (id와 Blob)
+    function storeImageInDB(id, blob) {
+      if (!db) return;
+      const transaction = db.transaction(["images"], "readwrite");
+      const store = transaction.objectStore("images");
+      store.put({ id: id, blob: blob });
+    }
+
+    // IndexedDB에서 이미지 불러오기 (콜백에 object URL 전달)
+    function getImageFromDB(id, callback) {
+      if (!db) { callback(null); return; }
+      const transaction = db.transaction(["images"], "readonly");
+      const store = transaction.objectStore("images");
+      const req = store.get(id);
+      req.onsuccess = function(event) {
+        const result = event.target.result;
+        if (result && result.blob) {
+          const url = URL.createObjectURL(result.blob);
+          callback(url);
+        } else {
+          callback(null);
+        }
+      };
+      req.onerror = function() { callback(null); };
+    }
+
+    /***** 데이터 저장 변수 *****/
+    let items = [];       // 등록된 상품 목록
+    let cart = {};        // 판매 모드의 장바구니 (상품 id를 키로 사용)
+    let saleHistory = []; // 판매(영수증) 내역
+
+    /***** 가격 포맷팅 (3자리마다 쉼표) *****/
+    function formatPrice(num) {
+      return num.toLocaleString();
+    }
+
+    /***** 모드 전환 *****/
+    function showSection(sectionId) {
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(sectionId).classList.add('active');
+      if (sectionId === 'salesMode') {
+        renderAvailableItems();
+        renderCart();
+      } else if (sectionId === 'editMode') {
+        renderItemsList();
+      } else if (sectionId === 'historyMode') {
+        renderHistory();
+      }
+    }
+    document.getElementById('editModeBtn').addEventListener("click", () => showSection('editMode'));
+    document.getElementById('salesModeBtn').addEventListener("click", () => showSection('salesMode'));
+    document.getElementById('historyModeBtn').addEventListener("click", () => showSection('historyMode'));
+
+    /***** Modal for Add/Edit Item *****/
+    let modalMode = ""; // "add" 또는 "edit"
+    let editingItemId = null;
+
+    function openItemModal(mode, item = null) {
+      modalMode = mode;
+      const modal = document.getElementById('itemModal');
+      const title = document.getElementById('itemModalTitle');
+      const nameInput = document.getElementById('modalItemName');
+      const priceInput = document.getElementById('modalItemPrice');
+      const fileInput = document.getElementById('modalItemImageFile');
+      if (mode === "add") {
+        title.textContent = "아이템 추가";
+        nameInput.value = "";
+        priceInput.value = "";
+        fileInput.value = "";
+        editingItemId = null;
+      } else if (mode === "edit" && item) {
+        title.textContent = "아이템 수정";
+        nameInput.value = item.name;
+        priceInput.value = item.price;
+        fileInput.value = "";
+        editingItemId = item.id;
+      }
+      modal.style.display = "block";
+    }
+
+    function closeItemModal() {
+      document.getElementById('itemModal').style.display = "none";
+    }
+
+    document.getElementById('modalCancelBtn').addEventListener('click', closeItemModal);
+
+    // 이미지 파일을 300×300으로 축소하여 Blob으로 변환
+    function processImage(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = 300;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, 300, 300);
+          canvas.toBlob(function(blob) {
+            callback(blob);
+          }, 'image/png');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Modal 폼 제출: add 또는 edit 처리
+    document.getElementById('itemModalForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('modalItemName').value.trim();
+      const price = parseFloat(document.getElementById('modalItemPrice').value);
+      const fileInput = document.getElementById('modalItemImageFile');
+      const file = fileInput.files[0];
+      
+      if (modalMode === "add") {
+        const itemId = Date.now();
+        let newItem = { id: itemId, name, price, hasImage: false };
+        function addNewItem() {
+          items.push(newItem);
+          renderItemsList();
+          renderAvailableItems();
+          closeItemModal();
+        }
+        if (file) {
+          processImage(file, function(blob) {
+            newItem.hasImage = true;
+            storeImageInDB(itemId, blob);
+            addNewItem();
+          });
+        } else {
+          addNewItem();
+        }
+      } else if (modalMode === "edit" && editingItemId !== null) {
+        let item = items.find(it => it.id === editingItemId);
+        if (item) {
+          item.name = name;
+          item.price = price;
+          function updateItem() {
+            renderItemsList();
+            renderAvailableItems();
+            closeItemModal();
+          }
+          if (file) {
+            processImage(file, function(blob) {
+              item.hasImage = true;
+              storeImageInDB(item.id, blob);
+              updateItem();
+            });
+          } else {
+            updateItem();
+          }
+        }
+      }
+    });
+
+    // "새 아이템 추가" 버튼 클릭 시 모달 열기
+    document.getElementById('openNewItemModalBtn').addEventListener('click', function() {
+      openItemModal("add");
+    });
+
+    // 아이템 수정 시 모달 열기
+    function editItem(id) {
+      const item = items.find(it => it.id === id);
+      if (item) {
+        openItemModal("edit", item);
+      }
+    }
+
+    // 아이템 삭제
+    function deleteItem(id) {
+      items = items.filter(it => it.id !== id);
+      renderItemsList();
+      renderAvailableItems();
+    }
+
+    /***** 판매 모드: 상품 및 장바구니 관리 *****/
+    function renderAvailableItems() {
+      const availableDiv = document.getElementById('availableItems');
+      availableDiv.innerHTML = '';
+      items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'item';
+
+        const imgElem = document.createElement('img');
+        imgElem.alt = item.name;
+        if (item.hasImage) {
+          getImageFromDB(item.id, function(url) {
+            imgElem.src = url ? url : '';
+          });
+        } else {
+          imgElem.src = '';
+        }
+        itemDiv.appendChild(imgElem);
+
+        const nameDiv = document.createElement('div');
+        nameDiv.innerHTML = `<strong>${item.name}</strong>`;
+        itemDiv.appendChild(nameDiv);
+
+        const priceDiv = document.createElement('div');
+        priceDiv.textContent = `${formatPrice(item.price)} 원`;
+        itemDiv.appendChild(priceDiv);
+
+        itemDiv.addEventListener('click', function() {
+          addToCart(item.id);
+        });
+
+        availableDiv.appendChild(itemDiv);
+      });
+    }
+
+    function renderItemsList() {
+      const listDiv = document.getElementById('itemsList');
+      listDiv.innerHTML = '';
+      const gridContainer = document.createElement('div');
+      gridContainer.style.display = 'grid';
+      gridContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+      gridContainer.style.gap = '10px';
+
+      items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'item';
+        itemDiv.style.textAlign = 'center';
+
+        const imgElem = document.createElement('img');
+        imgElem.alt = item.name;
+        if (item.hasImage) {
+          getImageFromDB(item.id, function(url) {
+            imgElem.src = url ? url : '';
+          });
+        } else {
+          imgElem.src = '';
+        }
+        itemDiv.appendChild(imgElem);
+
+        const nameDiv = document.createElement('div');
+        nameDiv.innerHTML = `<strong>${item.name}</strong>`;
+        itemDiv.appendChild(nameDiv);
+        const priceDiv = document.createElement('div');
+        priceDiv.textContent = `가격: ${formatPrice(item.price)} 원`;
+        itemDiv.appendChild(priceDiv);
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '수정';
+        editBtn.onclick = function() { editItem(item.id); };
+        itemDiv.appendChild(editBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '삭제';
+        deleteBtn.onclick = function() { deleteItem(item.id); };
+        itemDiv.appendChild(deleteBtn);
+
+        gridContainer.appendChild(itemDiv);
+      });
+      listDiv.appendChild(gridContainer);
+    }
+
+    function addToCart(id) {
+      const item = items.find(it => it.id === id);
+      if (item) {
+        if (cart[id]) {
+          cart[id].quantity += 1;
+        } else {
+          cart[id] = { ...item, quantity: 1 };
+        }
+        renderCart();
+      }
+    }
+
+    function renderCart() {
+      const cartDiv = document.getElementById('cart');
+      cartDiv.innerHTML = '';
+      let total = 0;
+      for (let key in cart) {
+        const cartItem = cart[key];
+        total += cartItem.price * cartItem.quantity;
+        const cartItemDiv = document.createElement('div');
+        cartItemDiv.className = 'cart-item';
+        cartItemDiv.innerHTML = `
+          <span>${cartItem.name} - ${formatPrice(cartItem.price)} 원 x ${cartItem.quantity} = ${formatPrice(cartItem.price * cartItem.quantity)} 원</span>
+          <button onclick="updateCartItem(${cartItem.id}, -1)">-</button>
+          <button onclick="updateCartItem(${cartItem.id}, 1)">+</button>
+          <button onclick="removeCartItem(${cartItem.id})">삭제</button>
+        `;
+        cartDiv.appendChild(cartItemDiv);
+      }
+      document.getElementById('totalPrice').textContent = formatPrice(total);
+    }
+
+    function updateCartItem(id, delta) {
+      if (cart[id]) {
+        cart[id].quantity += delta;
+        if (cart[id].quantity < 1) { delete cart[id]; }
+        renderCart();
+      }
+    }
+
+    function removeCartItem(id) {
+      if (cart[id]) {
+        delete cart[id];
+        renderCart();
+      }
+    }
+
+    document.getElementById('sellBtn').addEventListener('click', function() {
+      const cartItems = Object.values(cart);
+      if (cartItems.length === 0) {
+        alert("장바구니에 아이템이 없습니다.");
+        return;
+      }
+      const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const timestamp = new Date();
+      const receipt = {
+        id: Date.now(),
+        time: timestamp,
+        items: cartItems,
+        total: totalAmount
+      };
+      saleHistory.push(receipt);
+      alert("판매가 완료되었습니다. 영수증이 생성되었습니다.");
+      cart = {};
+      renderCart();
+    });
+
+    function renderHistory() {
+      const historyDiv = document.getElementById('historyList');
+      historyDiv.innerHTML = '';
+      const grouped = {};
+      saleHistory.forEach(receipt => {
+        const dateStr = receipt.time.toISOString().split('T')[0];
+        if (!grouped[dateStr]) { grouped[dateStr] = []; }
+        grouped[dateStr].push(receipt);
+      });
+      for (let date in grouped) {
+        const receipts = grouped[date];
+        const totalForDate = receipts.reduce((sum, r) => sum + r.total, 0);
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'receipt';
+        dateDiv.innerHTML = `
+          <strong>${date}</strong> - 총 판매 금액: ${formatPrice(totalForDate)} 원 
+          <button onclick="toggleDetails('${date}')">상세보기</button>
+          <div id="details-${date}" style="display: none; margin-top: 10px;"></div>
+        `;
+        historyDiv.appendChild(dateDiv);
+        const detailsDiv = document.getElementById(`details-${date}`);
+        receipts.forEach(r => {
+          const rDiv = document.createElement('div');
+          rDiv.style.borderTop = '1px dashed #aaa';
+          rDiv.style.paddingTop = '5px';
+          rDiv.innerHTML = `
+            <div>시간: ${r.time.toLocaleTimeString()}</div>
+            <div>총 합계: ${formatPrice(r.total)} 원</div>
+            <div>아이템 목록:</div>
+            <ul>
+              ${r.items.map(item => `<li>${item.name} - ${formatPrice(item.price)} 원 x ${item.quantity}</li>`).join('')}
+            </ul>
+            <button onclick="deleteReceipt(${r.id})">삭제</button>
+          `;
+          detailsDiv.appendChild(rDiv);
+        });
+      }
+    }
+
+    function toggleDetails(date) {
+      const detailsDiv = document.getElementById(`details-${date}`);
+      detailsDiv.style.display = (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') ? 'block' : 'none';
+    }
+
+    function deleteReceipt(id) {
+      saleHistory = saleHistory.filter(r => r.id !== id);
+      renderHistory();
+    }
+
+    /***** Export / Import 기능 *****/
+    function exportData() {
+      const data = { items: items, saleHistory: saleHistory };
+      const dataStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pos_data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) { return; }
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const importedData = JSON.parse(event.target.result);
+          if (importedData.items && importedData.saleHistory) {
+            items = importedData.items;
+            saleHistory = importedData.saleHistory;
+            renderItemsList();
+            renderAvailableItems();
+            renderHistory();
+            alert('데이터가 성공적으로 복구되었습니다.');
+          } else {
+            alert('잘못된 데이터 형식입니다.');
+          }
+        } catch(err) {
+          alert('데이터 복구 중 오류가 발생했습니다.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('importBtn').addEventListener('click', function() {
+      document.getElementById('importFile').click();
+    });
+    document.getElementById('importFile').addEventListener('change', importData);
+  </script>
+</body>
+</html>
