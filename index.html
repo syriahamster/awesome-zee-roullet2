@@ -278,7 +278,7 @@
     // 기본 가중치 문자열 (모든 항목에 대해 동일한 기본값: 1)
     const defaultWeights = "1,1,1,1,1,1,1,1,1";
     // 기본 reverseDuration 값 (ms)
-    const defaultReverseDuration = "250"; // ipad pro 12.9인치 기준으로 250ms로 변경
+    const defaultReverseDuration = "250"; // 예: 250ms
     
     // localStorage에 "items", "setting_weights", "setting_reverseDuration" 키가 없으면 기본값 저장
     if (!localStorage.getItem("items")) {
@@ -309,7 +309,7 @@
     }
     let textSize = parseInt(localStorage.getItem("setting_fontsize"));
     
-    // 돌림판 반대쪽 회전 딜레이는 "setting_reverseDuration" 키로 관리 (기본 100ms)
+    // 돌림판 반대쪽 회전 딜레이는 "setting_reverseDuration" 키로 관리 (기본 250ms)
     let reverseDuration = parseInt(localStorage.getItem("setting_reverseDuration"));
     
     // 돌림판 확률(가중치) 배열은 "setting_weights" 키로 관리
@@ -498,6 +498,9 @@
         
         const mainStartRotation = currentRotation;
         let mainStartTime = null;
+        spinSound.loop = true;
+        spinSound.currentTime = 0;
+        spinSound.play();
         
         function animateMain(timestamp) {
           if (!mainStartTime) mainStartTime = timestamp;
@@ -528,6 +531,16 @@
     
     canvas.addEventListener('click', spinWheel);
     spinButton.addEventListener('click', spinWheel);
+    
+    // Idle spin: 돌림판이 항상 돌아가게 idle 상태에서 천천히 회전
+    function idleSpin() {
+      if (!isSpinning) {
+        currentRotation += 0.005; // 속도 조정 (0.005 라디안씩 증가)
+        drawWheel(currentRotation);
+      }
+      requestAnimationFrame(idleSpin);
+    }
+    idleSpin();
   </script>
 </body>
 </html>
