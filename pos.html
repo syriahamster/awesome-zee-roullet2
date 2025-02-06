@@ -2,13 +2,13 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Lightweight HTML POS with Export/Import, Modals & Dark Mode</title>
+  <title>Lightweight HTML POS with Backup/Restore, Modals & Dark Mode</title>
   <style>
     /* 기본 스타일 */
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
     header { background-color: #333; color: #fff; padding: 10px; }
     header h1 { margin: 0 0 10px 0; }
-    /* Nav bar: 왼쪽 모드버튼, 오른쪽 export/import & 다크모드 토글 버튼 */
+    /* Nav bar: 왼쪽 모드버튼, 오른쪽 백업/복원, 다크모드 토글 버튼 */
     nav { display: flex; justify-content: space-between; align-items: center; }
     #nav-modes button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
     #nav-export-import button { margin-right: 5px; padding: 8px 12px; cursor: pointer; }
@@ -57,14 +57,14 @@
     .cart-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
     .cart-item button { margin: 0 2px; }
     
-    /* 판매 버튼을 크게 */
+    /* 판매 버튼 크게 */
     #sellBtn {
       font-size: 1.5em;
       padding: 10px 20px;
       margin-top: 10px;
     }
     
-    /* Modal styling (Add/Edit Item) */
+    /* Modal (아이템 추가/수정) */
     .modal {
       display: none; 
       position: fixed;
@@ -84,10 +84,7 @@
       width: 80%;
       max-width: 400px;
     }
-    .modal-content label {
-      display: block;
-      margin-top: 10px;
-    }
+    .modal-content label { display: block; margin-top: 10px; }
     .modal-content input {
       width: 100%;
       padding: 8px;
@@ -101,30 +98,28 @@
     }
     
     /* 다크모드 스타일 */
-    body.dark-mode {
-      background-color: #121212;
-      color: #e0e0e0;
+    body.dark-mode { background-color: #121212; color: #e0e0e0; }
+    body.dark-mode header { background-color: #1e1e1e; color: #e0e0e0; }
+    body.dark-mode nav button { background-color: #444; color: #e0e0e0; }
+    body.dark-mode #cartContainer { background-color: #1e1e1e; border-color: #555; }
+    body.dark-mode .item, body.dark-mode .cart-item { border-color: #555; }
+    body.dark-mode .modal-content { background-color: #333; color: #e0e0e0; border-color: #555; }
+    
+    /* "새 아이템 추가" 버튼 카드 스타일 */
+    #openNewItemModalBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #888;
+      padding: 20px;
+      cursor: pointer;
+      font-size: 1.2em;
+      background-color: transparent;
+      color: inherit;
+      margin-bottom: 20px;
     }
-    body.dark-mode header {
-      background-color: #1e1e1e;
-      color: #e0e0e0;
-    }
-    body.dark-mode nav button {
-      background-color: #444;
-      color: #e0e0e0;
-    }
-    body.dark-mode #cartContainer {
-      background-color: #1e1e1e;
-      border-color: #555;
-    }
-    body.dark-mode .item, body.dark-mode .cart-item {
-      border-color: #555;
-    }
-    body.dark-mode .modal-content {
-      background-color: #333;
-      color: #e0e0e0;
-      border-color: #555;
-    }
+    #openNewItemModalBtn:hover { background-color: #f0f0f0; }
+    body.dark-mode #openNewItemModalBtn:hover { background-color: #333; }
   </style>
 </head>
 <body>
@@ -134,11 +129,11 @@
       <div id="nav-modes">
         <button id="editModeBtn">편집 모드</button>
         <button id="salesModeBtn">판매 모드</button>
-        <button id="historyModeBtn">판매 히스토리</button>
+        <button id="historyModeBtn">판매내역</button>
       </div>
       <div id="nav-export-import">
-        <button id="exportBtn">데이터 Export</button>
-        <button id="importBtn">데이터 Import</button>
+        <button id="exportBtn">전체내용 백업하기</button>
+        <button id="importBtn">복원하기</button>
         <button id="darkModeToggle">다크모드 토글</button>
         <input type="file" id="importFile" accept="application/json" style="display: none;">
       </div>
@@ -148,7 +143,7 @@
   <!-- 편집 모드 -->
   <div id="editMode" class="section active">
     <h2>편집 모드</h2>
-    <button id="openNewItemModalBtn">새 아이템 추가</button>
+    <button id="openNewItemModalBtn">＋ 새 아이템 추가</button>
     <div id="itemsList" class="item-list">
       <!-- 아이템 목록을 grid로 표시 -->
     </div>
@@ -164,19 +159,17 @@
       <div id="cartContainer">
         <h3>장바구니</h3>
         <div id="cart" class="cart-list"></div>
-        <div>
-          <strong>총 합계:</strong> <span id="totalPrice">0</span> 원
-        </div>
+        <div><strong>총 합계:</strong> <span id="totalPrice">0</span> 원</div>
         <button id="sellBtn">판매</button>
       </div>
     </div>
   </div>
 
-  <!-- 판매 히스토리 -->
+  <!-- 판매내역 (이전 판매 히스토리) -->
   <div id="historyMode" class="section">
-    <h2>판매 히스토리</h2>
+    <h2>판매내역</h2>
     <div id="historyList" class="history-list">
-      <!-- 날짜별 영수증 표시 -->
+      <!-- 날짜별 거래 내역 표시 -->
     </div>
   </div>
 
@@ -209,22 +202,17 @@
         db.createObjectStore("images", { keyPath: "id" });
       }
     };
-    request.onsuccess = function(event) {
-      db = event.target.result;
-    };
-    request.onerror = function(event) {
-      console.error("IndexedDB error:", event);
-    };
+    request.onsuccess = function(event) { db = event.target.result; };
+    request.onerror = function(event) { console.error("IndexedDB error:", event); };
 
-    // IndexedDB에 이미지 저장 (id와 Blob)
+    // IndexedDB: 이미지 저장
     function storeImageInDB(id, blob) {
       if (!db) return;
       const transaction = db.transaction(["images"], "readwrite");
       const store = transaction.objectStore("images");
       store.put({ id: id, blob: blob });
     }
-
-    // IndexedDB에서 이미지 불러오기 (콜백에 object URL 전달)
+    // IndexedDB: 이미지 불러오기 (object URL 반환)
     function getImageFromDB(id, callback) {
       if (!db) { callback(null); return; }
       const transaction = db.transaction(["images"], "readonly");
@@ -235,35 +223,32 @@
         if (result && result.blob) {
           const url = URL.createObjectURL(result.blob);
           callback(url);
-        } else {
-          callback(null);
-        }
+        } else { callback(null); }
       };
       req.onerror = function() { callback(null); };
     }
 
     /***** 데이터 저장 변수 *****/
     let items = [];       // 등록된 상품 목록
-    let cart = {};        // 판매 모드의 장바구니 (상품 id를 키로 사용)
+    let cart = {};        // 판매모드 장바구니 (상품 id 키)
     let saleHistory = []; // 판매(영수증) 내역
 
     /***** 가격 포맷팅 (3자리마다 쉼표) *****/
-    function formatPrice(num) {
-      return num.toLocaleString();
-    }
+    function formatPrice(num) { return num.toLocaleString(); }
 
-    /***** 모드 전환 *****/
+    /***** 모드 전환 및 버튼 비활성화 업데이트 *****/
+    function updateNavButtons() {
+      // 판매모드: 등록된 상품이 없으면 비활성화
+      document.getElementById('salesModeBtn').disabled = (items.length === 0);
+      // 판매내역: 판매 내역이 없으면 비활성화
+      document.getElementById('historyModeBtn').disabled = (saleHistory.length === 0);
+    }
     function showSection(sectionId) {
       document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
       document.getElementById(sectionId).classList.add('active');
-      if (sectionId === 'salesMode') {
-        renderAvailableItems();
-        renderCart();
-      } else if (sectionId === 'editMode') {
-        renderItemsList();
-      } else if (sectionId === 'historyMode') {
-        renderHistory();
-      }
+      if (sectionId === 'salesMode') { renderAvailableItems(); renderCart(); }
+      else if (sectionId === 'editMode') { renderItemsList(); }
+      else if (sectionId === 'historyMode') { renderHistory(); }
     }
     document.getElementById('editModeBtn').addEventListener("click", () => showSection('editMode'));
     document.getElementById('salesModeBtn').addEventListener("click", () => showSection('salesMode'));
@@ -277,7 +262,6 @@
     /***** Modal for Add/Edit Item *****/
     let modalMode = ""; // "add" 또는 "edit"
     let editingItemId = null;
-
     function openItemModal(mode, item = null) {
       modalMode = mode;
       const modal = document.getElementById('itemModal');
@@ -300,27 +284,20 @@
       }
       modal.style.display = "block";
     }
-
-    function closeItemModal() {
-      document.getElementById('itemModal').style.display = "none";
-    }
-
+    function closeItemModal() { document.getElementById('itemModal').style.display = "none"; }
     document.getElementById('modalCancelBtn').addEventListener('click', closeItemModal);
 
-    // 이미지 파일을 300×300으로 축소하여 Blob으로 변환
+    // 이미지 파일을 300×300으로 축소 후 Blob 변환
     function processImage(file, callback) {
       const reader = new FileReader();
       reader.onload = function(event) {
         const img = new Image();
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          canvas.width = 300;
-          canvas.height = 300;
+          canvas.width = 300; canvas.height = 300;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, 300, 300);
-          canvas.toBlob(function(blob) {
-            callback(blob);
-          }, 'image/png');
+          canvas.toBlob(function(blob) { callback(blob); }, 'image/png');
         };
         img.src = event.target.result;
       };
@@ -340,9 +317,7 @@
         let newItem = { id: itemId, name, price, hasImage: false };
         function addNewItem() {
           items.push(newItem);
-          renderItemsList();
-          renderAvailableItems();
-          closeItemModal();
+          renderItemsList(); renderAvailableItems(); updateNavButtons(); closeItemModal();
         }
         if (file) {
           processImage(file, function(blob) {
@@ -350,33 +325,23 @@
             storeImageInDB(itemId, blob);
             addNewItem();
           });
-        } else {
-          addNewItem();
-        }
+        } else { addNewItem(); }
       } else if (modalMode === "edit" && editingItemId !== null) {
         let item = items.find(it => it.id === editingItemId);
         if (item) {
-          item.name = name;
-          item.price = price;
-          function updateItem() {
-            renderItemsList();
-            renderAvailableItems();
-            closeItemModal();
-          }
+          item.name = name; item.price = price;
+          function updateItem() { renderItemsList(); renderAvailableItems(); updateNavButtons(); closeItemModal(); }
           if (file) {
             processImage(file, function(blob) {
               item.hasImage = true;
               storeImageInDB(item.id, blob);
               updateItem();
             });
-          } else {
-            updateItem();
-          }
+          } else { updateItem(); }
         }
       }
     });
-
-    // "새 아이템 추가" 버튼 클릭 시 모달 열기
+    // "새 아이템 추가" 버튼 (카드형) 클릭 시 모달 열기
     document.getElementById('openNewItemModalBtn').addEventListener('click', function() {
       openItemModal("add");
     });
@@ -384,16 +349,12 @@
     // 아이템 수정 시 모달 열기
     function editItem(id) {
       const item = items.find(it => it.id === id);
-      if (item) {
-        openItemModal("edit", item);
-      }
+      if (item) { openItemModal("edit", item); }
     }
-
     // 아이템 삭제
     function deleteItem(id) {
       items = items.filter(it => it.id !== id);
-      renderItemsList();
-      renderAvailableItems();
+      renderItemsList(); renderAvailableItems(); updateNavButtons();
     }
 
     /***** 판매 모드: 상품 및 장바구니 관리 *****/
@@ -403,34 +364,22 @@
       items.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item';
-
         const imgElem = document.createElement('img');
         imgElem.alt = item.name;
         if (item.hasImage) {
-          getImageFromDB(item.id, function(url) {
-            imgElem.src = url ? url : '';
-          });
-        } else {
-          imgElem.src = '';
-        }
+          getImageFromDB(item.id, function(url) { imgElem.src = url ? url : ''; });
+        } else { imgElem.src = ''; }
         itemDiv.appendChild(imgElem);
-
         const nameDiv = document.createElement('div');
         nameDiv.innerHTML = `<strong>${item.name}</strong>`;
         itemDiv.appendChild(nameDiv);
-
         const priceDiv = document.createElement('div');
         priceDiv.textContent = `${formatPrice(item.price)} 원`;
         itemDiv.appendChild(priceDiv);
-
-        itemDiv.addEventListener('click', function() {
-          addToCart(item.id);
-        });
-
+        itemDiv.addEventListener('click', function() { addToCart(item.id); });
         availableDiv.appendChild(itemDiv);
       });
     }
-
     function renderItemsList() {
       const listDiv = document.getElementById('itemsList');
       listDiv.innerHTML = '';
@@ -438,57 +387,42 @@
       gridContainer.style.display = 'grid';
       gridContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
       gridContainer.style.gap = '10px';
-
       items.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item';
         itemDiv.style.textAlign = 'center';
-
         const imgElem = document.createElement('img');
         imgElem.alt = item.name;
         if (item.hasImage) {
-          getImageFromDB(item.id, function(url) {
-            imgElem.src = url ? url : '';
-          });
-        } else {
-          imgElem.src = '';
-        }
+          getImageFromDB(item.id, function(url) { imgElem.src = url ? url : ''; });
+        } else { imgElem.src = ''; }
         itemDiv.appendChild(imgElem);
-
         const nameDiv = document.createElement('div');
         nameDiv.innerHTML = `<strong>${item.name}</strong>`;
         itemDiv.appendChild(nameDiv);
         const priceDiv = document.createElement('div');
         priceDiv.textContent = `가격: ${formatPrice(item.price)} 원`;
         itemDiv.appendChild(priceDiv);
-
         const editBtn = document.createElement('button');
         editBtn.textContent = '수정';
         editBtn.onclick = function() { editItem(item.id); };
         itemDiv.appendChild(editBtn);
-
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '삭제';
         deleteBtn.onclick = function() { deleteItem(item.id); };
         itemDiv.appendChild(deleteBtn);
-
         gridContainer.appendChild(itemDiv);
       });
       listDiv.appendChild(gridContainer);
     }
-
     function addToCart(id) {
       const item = items.find(it => it.id === id);
       if (item) {
-        if (cart[id]) {
-          cart[id].quantity += 1;
-        } else {
-          cart[id] = { ...item, quantity: 1 };
-        }
+        if (cart[id]) { cart[id].quantity += 1; }
+        else { cart[id] = { ...item, quantity: 1 }; }
         renderCart();
       }
     }
-
     function renderCart() {
       const cartDiv = document.getElementById('cart');
       cartDiv.innerHTML = '';
@@ -508,7 +442,6 @@
       }
       document.getElementById('totalPrice').textContent = formatPrice(total);
     }
-
     function updateCartItem(id, delta) {
       if (cart[id]) {
         cart[id].quantity += delta;
@@ -516,45 +449,36 @@
         renderCart();
       }
     }
-
     function removeCartItem(id) {
-      if (cart[id]) {
-        delete cart[id];
-        renderCart();
-      }
+      if (cart[id]) { delete cart[id]; renderCart(); }
     }
-
     document.getElementById('sellBtn').addEventListener('click', function() {
       const cartItems = Object.values(cart);
-      if (cartItems.length === 0) {
-        alert("장바구니에 아이템이 없습니다.");
-        return;
-      }
+      if (cartItems.length === 0) { alert("장바구니에 아이템이 없습니다."); return; }
       const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const timestamp = new Date();
-      const receipt = {
-        id: Date.now(),
-        time: timestamp,
-        items: cartItems,
-        total: totalAmount
-      };
+      const receipt = { id: Date.now(), time: timestamp, items: cartItems, total: totalAmount };
       saleHistory.push(receipt);
       alert("판매가 완료되었습니다. 영수증이 생성되었습니다.");
-      cart = {};
-      renderCart();
+      cart = {}; renderCart(); updateNavButtons();
     });
 
+    /***** 판매내역 (판매 히스토리) 렌더링 (최신 거래가 먼저 보이도록 정렬) *****/
     function renderHistory() {
       const historyDiv = document.getElementById('historyList');
       historyDiv.innerHTML = '';
-      const grouped = {};
+      let grouped = {};
       saleHistory.forEach(receipt => {
-        const dateStr = receipt.time.toISOString().split('T')[0];
+        // receipt.time은 Date 객체로 복원되어 있어야 함
+        let dateStr = receipt.time.toISOString().split('T')[0];
         if (!grouped[dateStr]) { grouped[dateStr] = []; }
         grouped[dateStr].push(receipt);
       });
-      for (let date in grouped) {
-        const receipts = grouped[date];
+      // 날짜별 키를 내림차순 정렬 (최신 날짜가 먼저)
+      let dateKeys = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+      dateKeys.forEach(date => {
+        // 각 날짜 내 거래도 내림차순 정렬 (최신 거래가 먼저)
+        let receipts = grouped[date].sort((a, b) => b.time - a.time);
         const totalForDate = receipts.reduce((sum, r) => sum + r.total, 0);
         const dateDiv = document.createElement('div');
         dateDiv.className = 'receipt';
@@ -580,68 +504,63 @@
           `;
           detailsDiv.appendChild(rDiv);
         });
-      }
+      });
     }
-
     function toggleDetails(date) {
       const detailsDiv = document.getElementById(`details-${date}`);
       detailsDiv.style.display = (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') ? 'block' : 'none';
     }
-
     function deleteReceipt(id) {
       saleHistory = saleHistory.filter(r => r.id !== id);
       renderHistory();
+      updateNavButtons();
     }
 
-    /***** Export / Import 기능 *****/
+    /***** 전체내용 백업하기 / 복원하기 기능 *****/
     function exportData() {
       const data = { items: items, saleHistory: saleHistory };
       const dataStr = JSON.stringify(data, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'pos_data.json';
-      a.click();
-      URL.revokeObjectURL(url);
+      a.href = url; a.download = 'pos_data.json';
+      a.click(); URL.revokeObjectURL(url);
     }
-
     function importData(e) {
       const file = e.target.files[0];
       if (!file) return;
-      if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) { 
+      if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) {
         e.target.value = ""; // 파일 선택값 초기화
-        return; 
+        return;
       }
       const reader = new FileReader();
       reader.onload = function(event) {
         try {
           const importedData = JSON.parse(event.target.result);
           if (importedData.items && importedData.saleHistory) {
-            items = importedData.items;
-            saleHistory = importedData.saleHistory.map(receipt => {
-              return { ...receipt, time: new Date(receipt.time) };
+            // 복원 시, 각 거래의 time 값을 Date 객체로 변환
+            importedData.saleHistory.forEach(receipt => {
+              receipt.time = new Date(receipt.time);
             });
-            renderItemsList();
-            renderAvailableItems();
-            renderHistory();
+            items = importedData.items;
+            saleHistory = importedData.saleHistory;
+            renderItemsList(); renderAvailableItems(); renderHistory();
             alert('데이터가 성공적으로 복구되었습니다.');
-          } else {
-            alert('잘못된 데이터 형식입니다.');
-          }
-        } catch(err) {
-          alert('데이터 복구 중 오류가 발생했습니다.');
-        }
+            updateNavButtons();
+          } else { alert('잘못된 데이터 형식입니다.'); }
+        } catch(err) { alert('데이터 복구 중 오류가 발생했습니다.'); }
         e.target.value = ""; // 파일 입력 초기화
       };
       reader.readAsText(file);
     }
-
     document.getElementById('exportBtn').addEventListener('click', exportData);
     document.getElementById('importBtn').addEventListener('click', function() {
       document.getElementById('importFile').click();
     });
     document.getElementById('importFile').addEventListener('change', importData);
+
+    // 초기 버튼 상태 업데이트
+    updateNavButtons();
   </script>
 </body>
 </html>
