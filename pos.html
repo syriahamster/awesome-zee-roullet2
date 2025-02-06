@@ -2,16 +2,17 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Lightweight HTML POS with Export/Import and Modals</title>
+  <title>Lightweight HTML POS with Export/Import, Modals & Dark Mode</title>
   <style>
     /* 기본 스타일 */
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
     header { background-color: #333; color: #fff; padding: 10px; }
     header h1 { margin: 0 0 10px 0; }
-    /* Nav bar: 왼쪽 모드버튼, 오른쪽 export/import 버튼 */
+    /* Nav bar: 왼쪽 모드버튼, 오른쪽 export/import & 다크모드 토글 버튼 */
     nav { display: flex; justify-content: space-between; align-items: center; }
-    nav button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
-    #nav-export-import button { margin-right: 5px; }
+    #nav-modes button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
+    #nav-export-import button { margin-right: 5px; padding: 8px 12px; cursor: pointer; }
+    
     .section { padding: 20px; display: none; }
     .active { display: block; }
     
@@ -63,7 +64,7 @@
       margin-top: 10px;
     }
     
-    /* Modal styling */
+    /* Modal styling (Add/Edit Item) */
     .modal {
       display: none; 
       position: fixed;
@@ -98,6 +99,32 @@
       margin-top: 15px;
       margin-right: 5px;
     }
+    
+    /* 다크모드 스타일 */
+    body.dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    body.dark-mode header {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+    body.dark-mode nav button {
+      background-color: #444;
+      color: #e0e0e0;
+    }
+    body.dark-mode #cartContainer {
+      background-color: #1e1e1e;
+      border-color: #555;
+    }
+    body.dark-mode .item, body.dark-mode .cart-item {
+      border-color: #555;
+    }
+    body.dark-mode .modal-content {
+      background-color: #333;
+      color: #e0e0e0;
+      border-color: #555;
+    }
   </style>
 </head>
 <body>
@@ -112,6 +139,7 @@
       <div id="nav-export-import">
         <button id="exportBtn">데이터 Export</button>
         <button id="importBtn">데이터 Import</button>
+        <button id="darkModeToggle">다크모드 토글</button>
         <input type="file" id="importFile" accept="application/json" style="display: none;">
       </div>
     </nav>
@@ -240,6 +268,11 @@
     document.getElementById('editModeBtn').addEventListener("click", () => showSection('editMode'));
     document.getElementById('salesModeBtn').addEventListener("click", () => showSection('salesMode'));
     document.getElementById('historyModeBtn').addEventListener("click", () => showSection('historyMode'));
+
+    /***** Dark Mode 토글 *****/
+    document.getElementById('darkModeToggle').addEventListener('click', function() {
+      document.body.classList.toggle("dark-mode");
+    });
 
     /***** Modal for Add/Edit Item *****/
     let modalMode = ""; // "add" 또는 "edit"
@@ -576,14 +609,19 @@
     function importData(e) {
       const file = e.target.files[0];
       if (!file) return;
-      if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) { return; }
+      if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) { 
+        e.target.value = ""; // 파일 선택값 초기화
+        return; 
+      }
       const reader = new FileReader();
       reader.onload = function(event) {
         try {
           const importedData = JSON.parse(event.target.result);
           if (importedData.items && importedData.saleHistory) {
             items = importedData.items;
-            saleHistory = importedData.saleHistory;
+            saleHistory = importedData.saleHistory.map(receipt => {
+              return { ...receipt, time: new Date(receipt.time) };
+            });
             renderItemsList();
             renderAvailableItems();
             renderHistory();
@@ -594,6 +632,7 @@
         } catch(err) {
           alert('데이터 복구 중 오류가 발생했습니다.');
         }
+        e.target.value = ""; // 파일 입력 초기화
       };
       reader.readAsText(file);
     }
