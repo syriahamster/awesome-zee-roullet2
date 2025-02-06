@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="돌림판 게임">
+  <title>돌림판 게임</title>
+  <style>
+    /* 폰트 적용: assets/fonts/Jua-Regular.ttf */
+    @font-face {
+      font-family: 'Jua';
+      src: url('assets/fonts/Jua-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      /* 기본 배경: 세로 방향 스트라이프 */
+      background: repeating-linear-gradient(
+        90deg,
+        #ff9a9e,
+        #ff9a9e 50px,
+        #fad0c4 50px,
+        #fad0c4 100px
+      );
+      font-family: 'Jua', sans-serif;
+      overflow: hidden;
+      position: relative;
+      height: 100vh;
+      /* 모드 전환 효과 1초 적용 */
+      transition: background 1s ease;
+    }
+    /* 골드 모드일 때 적용: 배경이 더 밝고 반짝이는 글리터링 효과 */
+    body.gold-mode {
+      background: linear-gradient(135deg, #fffde7, #fff9c4);
+      animation: glitter 2s linear infinite;
+    }
+    @keyframes glitter {
+      0% { background-position: 0 0; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0 0; }
+    }
+    /* 타이틀: 상단 60px에 위치 */
+    .title {
+      position: absolute;
+      top: 60px;
+      width: 100%;
+      text-align: center;
+      font-size: 3em;
+      animation: pulse 2s infinite;
+      color: #ff4081;
+      text-shadow: 2px 2px #fff;
+      margin: 0;
+      padding: 0;
+      transition: color 1s ease;
+    }
+    /* 골드 모드일 때 타이틀 색상 변경 */
+    body.gold-mode .title {
+      color: #DAA520;
+      text-shadow: 2px 2px #fff;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    /* 설정 버튼 (불투명도 0.2) */
+    #settingsButton {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 2em;
+      opacity: 0.2;
+      cursor: pointer;
+      z-index: 101;
+    }
+    /* 돌림판 바로 위 캐릭터 이미지 */
+    #aboveWheelCharacter {
+      position: absolute;
+      left: 50%;
+      top: calc(50% - 250px - 120px);
+      transform: translateX(-50%);
+      width: 120px;
+      height: auto;
+      z-index: 103;
+    }
+    /* 중앙 돌림판 컨테이너 (500×500px, 중앙 배치) */
+    .wheel-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+    }
+    #wheelCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+      /* 배경 색상 전환 효과 1초 적용 */
+      transition: background 1s ease;
+    }
+    /* 골드 모드일 때 돌림판 내부 배경은 조금 더 밝게 */
+    body.gold-mode #wheelCanvas {
+      background: #fffbea;
+      box-shadow: 0 0 15px rgba(218,165,32,0.5);
+    }
+    /* 포인터: 상단 중앙에 배치, 180도 회전 */
+    #pointer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%) rotate(180deg);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 30px solid #8B0000;
+      transition: border-bottom-color 1s ease;
+    }
+    /* 골드 모드일 때 포인터 색상 변경 */
+    body.gold-mode #pointer {
+      border-bottom-color: #DAA520;
+    }
+    /* 모달 오버레이: Flexbox 중앙 정렬 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 110;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    /* 결과 모달: 500×300px, Dialog.svg 배경 */
+    #resultModal .modal-content {
+      width: 500px;
+      height: 300px;
+      background: url('assets/svg/Dialog.svg') no-repeat center center;
+      background-size: 100% 100%;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: filter 1s ease;
+    }
+    /* 골드 모드일 때 결과 모달 밝게 */
+    body.gold-mode #resultModal .modal-content {
+      filter: brightness(1.3);
+    }
+    /* 닫기 영역 (Dialog.svg 우측 상단 15%×30%) */
+    #dialogClose {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 15%;
+      height: 30%;
+      cursor: pointer;
+    }
+    /* 설정 모달: 흰색 배경, 패딩 20px */
+    #settingsModal .modal-content,
+    #goldSettingsModal .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      position: relative;
+    }
+    .modal-content h1 {
+      margin: 0;
+      font-size: 2em;
+      color: #28a745;
+    }
+    .modal-content p {
+      font-size: 1.5em;
+      margin: 20px 0;
+    }
+    /* 결과 모달 내 당첨 텍스트 크게 */
+    #resultModal p {
+      font-size: 3em;
+    }
+    .close {
+      display: none;
+    }
+    /* 설정 폼 스타일 */
+    #settingsForm label,
+    #goldSettingsForm label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    #settingsForm textarea,
+    #settingsForm input,
+    #goldSettingsForm textarea,
+    #goldSettingsForm input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    #settingsForm button,
+    #goldSettingsForm button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #settingsForm button:hover,
+    #goldSettingsForm button:hover { background-color: #218838; }
+    .version {
+      text-align: center;
+      font-size: 0.8em;
+      color: #aaa;
+      margin-top: 10px;
+    }
+    /* 버튼 컨테이너 (중앙, 500px 너비, padding 50px) */
+    .button-container {
+      position: absolute;
+      top: calc(50% + 220px);
+      left: 50%;
+      transform: translate(-50%, 0);
+      width: 500px;
+      text-align: center;
+      z-index: 104;
+      padding: 50px;
+    }
+    /* 스핀 버튼 (전체 너비, 전역 폰트 적용) */
+    #spinButton {
+      width: 100%;
+      padding: 15px 30px;
+      font-size: 2em;
+      font-family: 'Jua', sans-serif;
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      animation: pulse 2s infinite;
+      margin-bottom: 20px;
+    }
+    /* 기본 스핀 버튼 색상 */
+    #spinButton.normal {
+      background-color: #ff4081;
+    }
+    /* 골드 모드 스핀 버튼 색상 */
+    #spinButton.gold {
+      background-color: #DAA520;
+    }
+    /* 모드 전환 버튼 (텍스트만) */
+    #modeToggleButton {
+      padding: 10px 20px;
+      font-size: 1.5em;
+      font-family: 'Jua', sans-serif;
+      border: 2px solid #555;
+      background: transparent;
+      color: #555;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- 타이틀 -->
+  <h1 class="title">돌려돌려돌림판!</h1>
+  
+  <!-- 설정 버튼 (공통) -->
+  <div id="settingsButton">⚙</div>
+  
+  <!-- 돌림판 바로 위 캐릭터 이미지 -->
+  <img id="aboveWheelCharacter" src="assets/svg/above-character.svg" alt="Above Wheel Character">
+  
+  <!-- 중앙 돌림판 -->
+  <div class="wheel-container">
+    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    <div id="pointer"></div>
+  </div>
+  
+  <!-- 버튼 컨테이너: 스핀 버튼과 모드 전환 버튼 포함 -->
+  <div class="button-container">
+    <button id="spinButton" class="normal">돌리기!</button>
+    <button id="modeToggleButton">골드 돌림판</button>
+  </div>
+  
+  <!-- 결과 모달 (Dialog.svg 배경 적용) -->
+  <div id="resultModal" class="modal">
+    <div class="modal-content">
+      <div id="dialogClose"></div>
+      <h1>축하합니다!</h1>
+      <p id="prizeText"></p>
+    </div>
+  </div>
+  
+  <!-- 일반 설정 모달 -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content">
+      <span id="closeSettings" class="close">&times;</span>
+      <h1>설정</h1>
+      <form id="settingsForm">
+         <label for="itemsInput">아이템 목록 (콤마로 구분):</label>
+         <textarea id="itemsInput" rows="3"></textarea>
+         <label for="durationInput">돌림판 회전 시간 (ms):</label>
+         <input type="number" id="durationInput" min="1000" step="100">
+         <label for="textSizeInput">돌림판 텍스트 크기 (px):</label>
+         <input type="number" id="textSizeInput" min="10" step="1">
+         <label for="colorsInput">돌림판 섹터 배경 색상 (콤마로 구분, 색상코드):</label>
+         <input type="text" id="colorsInput">
+         <label for="pointerColorInput">포인터 색상:</label>
+         <input type="color" id="pointerColorInput">
+         <label for="weightsInput">돌림판 아이템 확률 (콤마로 구분):</label>
+         <input type="text" id="weightsInput">
+         <label for="reverseDurationInput">돌림판 반대쪽 회전 딜레이 (ms):</label>
+         <input type="number" id="reverseDurationInput" min="0" step="10">
+         <button type="submit">저장</button>
+      </form>
+      <div class="version">v1.0.4</div>
+    </div>
+  </div>
+  
+  <!-- 골드 모드 설정 모달 (일반 설정과 분리) -->
+  <div id="goldSettingsModal" class="modal">
+    <div class="modal-content">
+      <span id="closeGoldSettings" class="close">&times;</span>
+      <h1>골드 설정</h1>
+      <form id="goldSettingsForm">
+         <label for="goldItemsInput">아이템 목록 (콤마로 구분):</label>
+         <textarea id="goldItemsInput" rows="3"></textarea>
+         <label for="goldDurationInput">돌림판 회전 시간 (ms):</label>
+         <input type="number" id="goldDurationInput" min="1000" step="100">
+         <label for="goldTextSizeInput">돌림판 텍스트 크기 (px):</label>
+         <input type="number" id="goldTextSizeInput" min="10" step="1">
+         <label for="goldColorsInput">돌림판 섹터 배경 색상 (콤마로 구분, 색상코드):</label>
+         <input type="text" id="goldColorsInput">
+         <label for="goldPointerColorInput">포인터 색상:</label>
+         <input type="color" id="goldPointerColorInput">
+         <label for="goldWeightsInput">돌림판 아이템 확률 (콤마로 구분):</label>
+         <input type="text" id="goldWeightsInput">
+         <label for="goldReverseDurationInput">돌림판 반대쪽 회전 딜레이 (ms):</label>
+         <input type="number" id="goldReverseDurationInput" min="0" step="10">
+         <button type="submit">저장</button>
+      </form>
+      <div class="version">v1.0.4-gold</div>
+    </div>
+  </div>
+  
+  <!-- 음원 -->
+  <audio id="spinSound" src="assets/wav/spin_short.mp3" preload="auto"></audio>
+  <audio id="winSound" src="assets/wav/win.wav"></audio>
+  
+  <script>
+    /* ===== 일반 돌림판 관련 변수 및 기본값 ===== */
+    const defaultItems = "엽서 2장,엽서 3장,스티커 1장,스티커 2장,포스터 1장,책갈피 1개,스티커 1장,엽서 2장,책갈피 2개";
+    const defaultWeights = "1,1,1,1,1,1,1,1,1";
+    const defaultReverseDuration = "250"; // ms
+    if (!localStorage.getItem("items")) {
+      localStorage.setItem("items", defaultItems);
+    }
+    if (!localStorage.getItem("setting_weights")) {
+      localStorage.setItem("setting_weights", defaultWeights);
+    }
+    if (!localStorage.getItem("setting_reverseDuration")) {
+      localStorage.setItem("setting_reverseDuration", defaultReverseDuration);
+    }
+    let prizes = localStorage.getItem("items")
+                   .split(',')
+                   .map(item => item.trim())
+                   .filter(item => item !== "");
+    if (!localStorage.getItem("setting_duration")) {
+      localStorage.setItem("setting_duration", "4000");
+    }
+    let spinDuration = parseInt(localStorage.getItem("setting_duration"));
+    if (!localStorage.getItem("setting_fontsize")) {
+      localStorage.setItem("setting_fontsize", "30");
+    }
+    let textSize = parseInt(localStorage.getItem("setting_fontsize"));
+    let reverseDuration = parseInt(localStorage.getItem("setting_reverseDuration"));
+    let weights = localStorage.getItem("setting_weights")
+                    .split(',')
+                    .map(w => parseFloat(w.trim()))
+                    .filter(w => !isNaN(w));
+    let colors = ["#FF6B6B", "#FF8E72", "#FFCA3A", "#8AC926", "#1982C4", "#6A4C93"];
+    let pointerColor = "#8B0000";
+    let normalRotation = 0;
+    
+    /* ===== 골드 돌림판 관련 변수 및 기본값 (일반과 분리) ===== */
+    const goldDefaultItems = "골드 엽서,골드 스티커,골드 포스터";
+    const goldDefaultWeights = "1,1,1";
+    const goldDefaultReverseDuration = "250";
+    if (!localStorage.getItem("gold_items")) {
+      localStorage.setItem("gold_items", goldDefaultItems);
+    }
+    if (!localStorage.getItem("gold_setting_weights")) {
+      localStorage.setItem("gold_setting_weights", goldDefaultWeights);
+    }
+    if (!localStorage.getItem("gold_setting_reverseDuration")) {
+      localStorage.setItem("gold_setting_reverseDuration", goldDefaultReverseDuration);
+    }
+    let goldPrizes = localStorage.getItem("gold_items")
+                      .split(',')
+                      .map(item => item.trim())
+                      .filter(item => item !== "");
+    if (!localStorage.getItem("gold_setting_duration")) {
+      localStorage.setItem("gold_setting_duration", "4000");
+    }
+    let goldSpinDuration = parseInt(localStorage.getItem("gold_setting_duration"));
+    if (!localStorage.getItem("gold_setting_fontsize")) {
+      localStorage.setItem("gold_setting_fontsize", "30");
+    }
+    let goldTextSize = parseInt(localStorage.getItem("gold_setting_fontsize"));
+    let goldReverseDuration = parseInt(localStorage.getItem("gold_setting_reverseDuration"));
+    let goldWeights = localStorage.getItem("gold_setting_weights")
+                       .split(',')
+                       .map(w => parseFloat(w.trim()))
+                       .filter(w => !isNaN(w));
+    let goldColors = ["#FFD700", "#FFEC8B", "#FFF8DC", "#FAFAD2", "#FFEBCD", "#FFFACD"];
+    let goldPointerColor = "#DAA520";
+    let goldRotation = 0;
+    
+    /* 모드 플래그: false = 일반, true = 골드 */
+    let isGoldMode = false;
+    let isSpinning = false;
+    
+    /* ===== 공통 요소 ===== */
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const cw = canvas.width, ch = canvas.height;
+    const centerX = cw / 2, centerY = ch / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    const spinSound = document.getElementById('spinSound');
+    const winSound = document.getElementById('winSound');
+    const resultModal = document.getElementById('resultModal');
+    const prizeTextElem = document.getElementById('prizeText');
+    
+    /* 설정 모달 */
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettings');
+    const settingsForm = document.getElementById('settingsForm');
+    const itemsInput = document.getElementById('itemsInput');
+    const durationInput = document.getElementById('durationInput');
+    const textSizeInput = document.getElementById('textSizeInput');
+    const colorsInput = document.getElementById('colorsInput');
+    const pointerColorInput = document.getElementById('pointerColorInput');
+    const weightsInput = document.getElementById('weightsInput');
+    const reverseDurationInput = document.getElementById('reverseDurationInput');
+    const settingsButton = document.getElementById('settingsButton');
+    
+    /* 골드 설정 모달 */
+    const goldSettingsModal = document.getElementById('goldSettingsModal');
+    const closeGoldSettingsBtn = document.getElementById('closeGoldSettings');
+    const goldSettingsForm = document.getElementById('goldSettingsForm');
+    const goldItemsInput = document.getElementById('goldItemsInput');
+    const goldDurationInput = document.getElementById('goldDurationInput');
+    const goldTextSizeInput = document.getElementById('goldTextSizeInput');
+    const goldColorsInput = document.getElementById('goldColorsInput');
+    const goldPointerColorInput = document.getElementById('goldPointerColorInput');
+    const goldWeightsInput = document.getElementById('goldWeightsInput');
+    const goldReverseDurationInput = document.getElementById('goldReverseDurationInput');
+    
+    /* 버튼들 */
+    const spinButton = document.getElementById('spinButton');
+    const modeToggleButton = document.getElementById('modeToggleButton');
+    const pointerElem = document.getElementById('pointer');
+    const dialogClose = document.getElementById("dialogClose");
+    
+    if (dialogClose) {
+      dialogClose.addEventListener("click", () => {
+        resultModal.style.display = "none";
+      });
+    }
+    
+    // 모달 닫기 이벤트
+    closeSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+    closeGoldSettingsBtn.addEventListener('click', () => { goldSettingsModal.style.display = 'none'; });
+    window.addEventListener('click', (event) => {
+      if (event.target === resultModal) resultModal.style.display = 'none';
+      if (event.target === settingsModal) settingsModal.style.display = 'none';
+      if (event.target === goldSettingsModal) goldSettingsModal.style.display = 'none';
+    });
+    
+    // 일반 설정 모달 열기
+    settingsButton.addEventListener('click', () => {
+      itemsInput.value = localStorage.getItem("items");
+      durationInput.value = spinDuration;
+      textSizeInput.value = textSize;
+      colorsInput.value = colors.join(', ');
+      pointerColorInput.value = pointerColor;
+      weightsInput.value = localStorage.getItem("setting_weights");
+      reverseDurationInput.value = reverseDuration;
+      settingsModal.style.display = 'flex';
+    });
+    
+    // 골드 설정 모달 열기
+    // (필요에 따라 별도 버튼이나 이벤트로 열 수 있음)
+    
+    /* ===== 공통 그리기 함수 (모드에 따라 분기) ===== */
+    function drawCurrentWheel() {
+      // 현재 모드에 따른 값 선택
+      const rotation = isGoldMode ? goldRotation : normalRotation;
+      const prizeArr = isGoldMode ? goldPrizes : prizes;
+      const wheelColors = isGoldMode ? goldColors : colors;
+      const fontSize = isGoldMode ? goldTextSize : textSize;
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      const numSegments = prizeArr.length;
+      const arcSize = 2 * Math.PI / numSegments;
+      for (let i = 0; i < numSegments; i++) {
+        const startAngle = i * arcSize;
+        const endAngle = startAngle + arcSize;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle, false);
+        ctx.closePath();
+        ctx.fillStyle = wheelColors[i % wheelColors.length];
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.save();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold " + fontSize + "px sans-serif";
+        const textAngle = startAngle + arcSize / 2;
+        ctx.rotate(textAngle);
+        ctx.textAlign = "right";
+        ctx.fillText(prizeArr[i], radius - 10, 10);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    
+    /* ===== 애니메이션 및 보간 함수 ===== */
+    function easeOutQuad(t) { return t * (2 - t); }
+    function mod(n, m) { return ((n % m) + m) % m; }
+    
+    // 가중치 기반 랜덤 선택
+    function weightedRandom(arrWeights) {
+      const total = arrWeights.reduce((sum, w) => sum + w, 0);
+      let random = Math.random() * total;
+      for (let i = 0; i < arrWeights.length; i++) {
+        if (random < arrWeights[i]) return i;
+        random -= arrWeights[i];
+      }
+      return arrWeights.length - 1;
+    }
+    
+    /* ===== 돌림판 회전 함수: 일반과 골드 분리 ===== */
+    function spinNormalWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+      const reverseAngle = -0.5;
+      const startRotation = normalRotation;
+      let reverseStartTime = null;
+      spinSound.currentTime = 0;
+      spinSound.play();
+      function animateReverse(timestamp) {
+        if (!reverseStartTime) reverseStartTime = timestamp;
+        const elapsed = timestamp - reverseStartTime;
+        const t = Math.min(elapsed / reverseDuration, 1);
+        normalRotation = startRotation + reverseAngle * t;
+        drawCurrentWheel();
+        if (t < 1) {
+          requestAnimationFrame(animateReverse);
+        } else {
+          spinMain();
+        }
+      }
+      function spinMain() {
+        const prizeIndex = weightedRandom(weights);
+        const extraSpins = 3 + Math.floor(Math.random() * 3);
+        const arcSize = 2 * Math.PI / prizes.length;
+        const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
+        const adjustment = mod(-Math.PI/2 - targetSectorCenter - normalRotation, 2 * Math.PI);
+        const targetRotation = normalRotation + extraSpins * 2 * Math.PI + adjustment;
+        const mainStartRotation = normalRotation;
+        let mainStartTime = null;
+        spinSound.loop = true;
+        spinSound.currentTime = 0;
+        spinSound.play();
+        function animateMain(timestamp) {
+          if (!mainStartTime) mainStartTime = timestamp;
+          const elapsed = timestamp - mainStartTime;
+          const t = Math.min(elapsed / spinDuration, 1);
+          const easedT = easeOutQuad(t);
+          normalRotation = mainStartRotation + (targetRotation - mainStartRotation) * easedT;
+          drawCurrentWheel();
+          if (t < 1) {
+            requestAnimationFrame(animateMain);
+          } else {
+            normalRotation = targetRotation;
+            drawCurrentWheel();
+            isSpinning = false;
+            spinSound.pause();
+            spinSound.currentTime = 0;
+            winSound.currentTime = 0;
+            winSound.play();
+            prizeTextElem.textContent = prizes[prizeIndex];
+            resultModal.style.display = 'flex';
+          }
+        }
+        requestAnimationFrame(animateMain);
+      }
+      requestAnimationFrame(animateReverse);
+    }
+    
+    function spinGoldWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+      const reverseAngle = -0.5;
+      const startRotation = goldRotation;
+      let reverseStartTime = null;
+      spinSound.currentTime = 0;
+      spinSound.play();
+      function animateReverse(timestamp) {
+        if (!reverseStartTime) reverseStartTime = timestamp;
+        const elapsed = timestamp - reverseStartTime;
+        const t = Math.min(elapsed / goldReverseDuration, 1);
+        goldRotation = startRotation + reverseAngle * t;
+        drawCurrentWheel();
+        if (t < 1) {
+          requestAnimationFrame(animateReverse);
+        } else {
+          spinMain();
+        }
+      }
+      function spinMain() {
+        const prizeIndex = weightedRandom(goldWeights);
+        const extraSpins = 3 + Math.floor(Math.random() * 3);
+        const arcSize = 2 * Math.PI / goldPrizes.length;
+        const targetSectorCenter = (prizeIndex + 0.5) * arcSize;
+        const adjustment = mod(-Math.PI/2 - targetSectorCenter - goldRotation, 2 * Math.PI);
+        const targetRotation = goldRotation + extraSpins * 2 * Math.PI + adjustment;
+        const mainStartRotation = goldRotation;
+        let mainStartTime = null;
+        spinSound.loop = true;
+        spinSound.currentTime = 0;
+        spinSound.play();
+        function animateMain(timestamp) {
+          if (!mainStartTime) mainStartTime = timestamp;
+          const elapsed = timestamp - mainStartTime;
+          const t = Math.min(elapsed / goldSpinDuration, 1);
+          const easedT = easeOutQuad(t);
+          goldRotation = mainStartRotation + (targetRotation - mainStartRotation) * easedT;
+          drawCurrentWheel();
+          if (t < 1) {
+            requestAnimationFrame(animateMain);
+          } else {
+            goldRotation = targetRotation;
+            drawCurrentWheel();
+            isSpinning = false;
+            spinSound.pause();
+            spinSound.currentTime = 0;
+            winSound.currentTime = 0;
+            winSound.play();
+            prizeTextElem.textContent = goldPrizes[prizeIndex];
+            resultModal.style.display = 'flex';
+          }
+        }
+        requestAnimationFrame(animateMain);
+      }
+      requestAnimationFrame(animateReverse);
+    }
+    
+    // canvas 및 스핀 버튼 클릭 시 모드에 따라 돌림
+    canvas.addEventListener('click', () => {
+      if (isGoldMode) {
+        spinGoldWheel();
+      } else {
+        spinNormalWheel();
+      }
+    });
+    spinButton.addEventListener('click', () => {
+      if (isGoldMode) {
+        spinGoldWheel();
+      } else {
+        spinNormalWheel();
+      }
+    });
+    
+    // 모드 전환 함수: 1초 동안 천천히 색상 전환 효과 후 텍스트 변경
+    function toggleMode() {
+      if (isSpinning) return; // 회전 중에는 모드 전환 금지
+      if (!isGoldMode) {
+        // 일반 => 골드 모드 전환
+        document.body.classList.add('gold-mode');
+        // 1초 후 텍스트 업데이트
+        setTimeout(() => {
+          isGoldMode = true;
+          spinButton.textContent = "골드 돌리기";
+          spinButton.classList.remove("normal");
+          spinButton.classList.add("gold");
+          modeToggleButton.textContent = "일반 돌림판";
+        }, 1000);
+      } else {
+        // 골드 => 일반 모드 전환
+        document.body.classList.remove('gold-mode');
+        setTimeout(() => {
+          isGoldMode = false;
+          spinButton.textContent = "돌리기!";
+          spinButton.classList.remove("gold");
+          spinButton.classList.add("normal");
+          modeToggleButton.textContent = "골드 돌림판";
+        }, 1000);
+      }
+    }
+    
+    // 모드 전환 버튼 클릭 이벤트
+    modeToggleButton.addEventListener('click', toggleMode);
+    
+    // idle 회전 (모드에 따라 회전각 업데이트)
+    function idleSpin() {
+      if (!isSpinning) {
+        if (isGoldMode) {
+          goldRotation += 0.005;
+        } else {
+          normalRotation += 0.005;
+        }
+        drawCurrentWheel();
+      }
+      requestAnimationFrame(idleSpin);
+    }
+    idleSpin();
+  </script>
+</body>
+</html>
