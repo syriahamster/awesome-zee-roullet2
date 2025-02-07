@@ -255,7 +255,7 @@
         }
         /* 결과 모달 골드 버전 */
         #resultModal.gold .modal-content {
-            background: url('assets/svg/Dialog_gold.svg') no-repeat center center;
+            background: url('assets/svg/Dialog.svg') no-repeat center center;
             background-size: 100% 100%;
             background-color: #fffbea;
         }
@@ -267,6 +267,12 @@
             width: 15%;
             height: 30%;
             cursor: pointer;
+        }
+        /* 결과 모달 내부 카운트 타이머 (자동 종료 남은 시간) */
+        #countdownTimer {
+            font-size: 1em;
+            color: #555;
+            margin-top: 10px;
         }
         /* 설정 모달 */
         #settingsModal .modal-content,
@@ -426,6 +432,8 @@
             <div id="dialogClose"></div>
             <h1>축하합니다!</h1>
             <p id="prizeText"></p>
+            <!-- 남은 시간 카운트 -->
+            <div id="countdownTimer"></div>
         </div>
     </div>
     
@@ -568,6 +576,7 @@
             dialogClose.addEventListener("click", () => {
                 resultModal.style.display = "none";
                 resultModal.classList.remove("gold");
+                clearInterval(modalCountdownInterval);
             });
         }
         
@@ -578,6 +587,7 @@
             if (event.target === resultModal) {
                 resultModal.style.display = 'none';
                 resultModal.classList.remove("gold");
+                clearInterval(modalCountdownInterval);
             }
             if (event.target === settingsModal) settingsModal.style.display = 'none';
         });
@@ -739,7 +749,9 @@
                         winSound.currentTime = 0;
                         winSound.play();
                         prizeTextElem.textContent = prizes[prizeIndex];
+                        resultModal.classList.add("gold");
                         resultModal.style.display = 'flex';
+                        startModalCountdown();
                     }
                 }
                 requestAnimationFrame(animateMain);
@@ -899,6 +911,7 @@
                         prizeTextElem.textContent = goldPrizes[prizeIndex];
                         resultModal.classList.add("gold");
                         resultModal.style.display = 'flex';
+                        startModalCountdown();
                     }
                 }
                 requestAnimationFrame(animateGoldMain);
@@ -1037,7 +1050,24 @@
             }
         }, 500);
         
-        /////////////// 테스트 함수: 돌림판 100회 회전 결과를 콘솔에 출력 (일반, 골드 모드 구분) ///////////////
+        /////////////// 결과 모달 자동 종료 및 남은 시간 표시 ///////////////
+        let modalCountdownInterval;
+        function startModalCountdown() {
+            let countdown = 10;
+            const countdownTimerElem = document.getElementById("countdownTimer");
+            countdownTimerElem.innerText = `자동 종료까지: ${countdown}초`;
+            modalCountdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(modalCountdownInterval);
+                    resultModal.style.display = 'none';
+                } else {
+                    countdownTimerElem.innerText = `자동 종료까지: ${countdown}초`;
+                }
+            }, 1000);
+        }
+        
+        /////////////// 테스트 함수: 100회 시뮬레이션 (일반, 골드 모드 구분) ///////////////
         function simulateSpin(num, mode) {
             let localWeights;
             let results = {};
@@ -1053,7 +1083,7 @@
             console.log(mode + " 모드 (" + num + "회) 시뮬레이션 결과:", results);
             return results;
         }
-        // 예: 브라우저 콘솔에서 simulateSpin(100, "normal"); 또는 simulateSpin(100, "gold");
+        // 예시: 브라우저 콘솔에서 simulateSpin(100, "normal"); 또는 simulateSpin(100, "gold");
     </script>
 </body>
 </html>
