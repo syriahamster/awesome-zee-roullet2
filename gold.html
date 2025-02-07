@@ -19,7 +19,7 @@
         body {
             margin: 0;
             padding: 0;
-            /* 일반모드: 고정된 세로 스트라이프 배경 (90deg → 세로) */
+            /* 일반모드: 고정된 세로 스트라이프 배경 (90deg) */
             background: repeating-linear-gradient(
                 90deg,
                 #ff9a9e,
@@ -33,18 +33,19 @@
             height: 100vh;
             transition: background 1s;
         }
-        /* 골드모드: 가로 스트라이프(0deg) 배경이 천천히 위로 움직이며 반짝임 */
+        /* 골드모드: 가로 스트라이프(0deg) 배경 – 밝은 금빛과 빠른 움직임, 글리터링 효과 추가 */
         body.gold-mode {
             background: repeating-linear-gradient(
                     0deg,
-                    #ff9a9e,
-                    #ff9a9e 50px,
-                    #fad0c4 50px,
-                    #fad0c4 100px
+                    /* 밝은 금빛 스트라이프 */
+                    #fff8dc,
+                    #fff8dc 50px,
+                    #ffd700 50px,
+                    #ffd700 100px
                 ),
                 linear-gradient(45deg, rgba(255,223,0,0.5), rgba(255,215,0,0.5), rgba(255,248,220,0.5));
             background-blend-mode: overlay;
-            animation: moveStripes 10s linear infinite, glitter 3s ease infinite;
+            animation: moveStripes 5s linear infinite, glitter 3s ease infinite;
         }
         @keyframes moveStripes {
             0% {
@@ -59,10 +60,56 @@
                 filter: brightness(1);
             }
             50% {
-                filter: brightness(1.5);
+                filter: brightness(2);
             }
             100% {
                 filter: brightness(1);
+            }
+        }
+        /* 별 효과 (골드모드 전용) */
+        #starContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            display: none;
+        }
+        body.gold-mode #starContainer {
+            display: block;
+        }
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation-name: rise, twinkle;
+            animation-iteration-count: infinite, infinite;
+            animation-timing-function: linear, ease-in-out;
+        }
+        @keyframes rise {
+            0% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-10vh);
+                opacity: 0;
+            }
+        }
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
             }
         }
         /* 타이틀 */
@@ -269,20 +316,22 @@
             color: #aaa;
             margin-top: 10px;
         }
-        /* 버튼 컨테이너 */
+        /* 버튼 컨테이너: 내부 버튼들을 수평 배치 (일반 돌리기 버튼 좌측, 모드 전환 버튼 우측) */
         .button-container {
             position: absolute;
             top: calc(50% + 220px);
             left: 50%;
             transform: translate(-50%, 0);
             width: 500px;
-            text-align: center;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
             z-index: 104;
             padding: 50px;
         }
         /* 일반 모드 돌리기 버튼 */
         #spinButton {
-            width: 100%;
             padding: 15px 30px;
             font-size: 2em;
             font-family: 'Jua', sans-serif;
@@ -295,7 +344,6 @@
         }
         /* 골드 모드 돌리기 버튼 (금빛 버튼) */
         #goldSpinButton {
-            width: 100%;
             padding: 15px 30px;
             font-size: 2em;
             font-family: 'Jua', sans-serif;
@@ -304,18 +352,16 @@
             color: #000;
             border-radius: 10px;
             cursor: pointer;
-            margin-top: 20px;
-            transition: background-color 0.5s, opacity 1s;
             display: none;
+            transition: background-color 0.5s, opacity 1s;
         }
-        /* 모드 전환 버튼 */
+        /* 모드 전환 버튼: 일반모드일 때 황금색 버튼으로 표시 (돌리기! 버튼 우측에 위치) */
         #modeToggleButton {
-            margin-top: 20px;
             padding: 10px 20px;
             font-size: 1.5em;
             border: none;
-            background-color: #ccc;
-            color: #333;
+            background-color: gold;
+            color: #000;
             border-radius: 5px;
             cursor: pointer;
         }
@@ -346,7 +392,7 @@
         <button id="spinButton">돌리기!</button>
         <!-- 골드 모드 돌리기 버튼 (금빛 버튼) -->
         <button id="goldSpinButton">골드돌리기</button>
-        <!-- 모드 전환 버튼 (일반모드에서는 "골드 모드", 골드모드에서는 "일반 돌림판") -->
+        <!-- 모드 전환 버튼 -->
         <button id="modeToggleButton">골드 모드</button>
     </div>
     
@@ -381,7 +427,7 @@
                 <input type="number" id="reverseDurationInput" min="0" step="10">
                 <button type="submit">저장</button>
             </form>
-            <div class="version">v1.0.5</div>
+            <div class="version">v1.0.7</div>
         </div>
     </div>
     
@@ -407,9 +453,12 @@
                 <input type="number" id="goldReverseDurationInput" min="0" step="10">
                 <button type="submit">저장</button>
             </form>
-            <div class="version">골드 v1.0.5</div>
+            <div class="version">골드 v1.0.7</div>
         </div>
     </div>
+    
+    <!-- 별 효과 컨테이너 (골드모드 전용) -->
+    <div id="starContainer"></div>
     
     <!-- 음원 -->
     <audio id="spinSound" src="assets/wav/spin_short.mp3" preload="auto"></audio>
@@ -842,6 +891,66 @@
         }
         idleGoldSpin();
         
+        /////////////// 골드 설정 모달 이벤트 ///////////////
+        const goldSettingsButton = document.getElementById('goldSettingsButton');
+        const goldSettingsModal = document.getElementById('goldSettingsModal');
+        const closeGoldSettingsBtn = document.getElementById('closeGoldSettings');
+        const goldSettingsForm = document.getElementById('goldSettingsForm');
+        
+        goldSettingsButton.addEventListener('click', () => {
+            document.getElementById('goldItemsInput').value = localStorage.getItem("gold_items");
+            document.getElementById('goldDurationInput').value = goldSpinDuration;
+            document.getElementById('goldTextSizeInput').value = goldTextSize;
+            document.getElementById('goldColorsInput').value = goldColors.join(', ');
+            document.getElementById('goldPointerColorInput').value = goldPointerColor;
+            document.getElementById('goldWeightsInput').value = localStorage.getItem("gold_setting_weights");
+            document.getElementById('goldReverseDurationInput').value = goldReverseDuration;
+            goldSettingsModal.style.display = 'flex';
+        });
+        closeGoldSettingsBtn.addEventListener('click', () => {
+            goldSettingsModal.style.display = 'none';
+        });
+        window.addEventListener('click', (event) => {
+            if (event.target === goldSettingsModal) {
+                goldSettingsModal.style.display = 'none';
+            }
+        });
+        goldSettingsForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const goldItemsStr = document.getElementById('goldItemsInput').value;
+            if (goldItemsStr.trim() !== "") {
+                goldPrizes = goldItemsStr.split(',').map(item => item.trim()).filter(item => item !== "");
+                localStorage.setItem("gold_items", goldItemsStr);
+            }
+            const durationVal = parseInt(document.getElementById('goldDurationInput').value);
+            if (!isNaN(durationVal) && durationVal > 0) {
+                goldSpinDuration = durationVal;
+                localStorage.setItem("gold_setting_duration", durationVal.toString());
+            }
+            const textSizeVal = parseInt(document.getElementById('goldTextSizeInput').value);
+            if (!isNaN(textSizeVal) && textSizeVal > 0) {
+                goldTextSize = textSizeVal;
+                localStorage.setItem("gold_setting_fontsize", textSizeVal.toString());
+            }
+            const colorsStr = document.getElementById('goldColorsInput').value;
+            if (colorsStr.trim() !== "") {
+                goldColors = colorsStr.split(',').map(color => color.trim()).filter(color => color !== "");
+            }
+            goldPointerColor = document.getElementById('goldPointerColorInput').value;
+            const weightsStr = document.getElementById('goldWeightsInput').value;
+            if (weightsStr.trim() !== "") {
+                goldWeights = weightsStr.split(',').map(w => parseFloat(w.trim())).filter(w => !isNaN(w));
+                localStorage.setItem("gold_setting_weights", weightsStr);
+            }
+            const reverseVal = parseInt(document.getElementById('goldReverseDurationInput').value);
+            if (!isNaN(reverseVal) && reverseVal >= 0) {
+                goldReverseDuration = reverseVal;
+                localStorage.setItem("gold_setting_reverseDuration", reverseVal.toString());
+            }
+            goldSettingsModal.style.display = 'none';
+            drawGoldWheel(goldCurrentRotation);
+        });
+        
         /////////////// 모드 전환 버튼 처리 ///////////////
         let isGoldMode = false;
         const goldSpinButton = document.getElementById('goldSpinButton');
@@ -859,6 +968,9 @@
                 goldCanvas.style.opacity = 1;
                 canvas.style.opacity = 0;
                 modeToggleButton.textContent = "일반 돌림판";
+                // 모드 전환 버튼은 일반 모드로 돌아갈 때에는 무난한 디자인
+                modeToggleButton.style.backgroundColor = "#ccc";
+                modeToggleButton.style.color = "#333";
             } else {
                 // 골드 모드 → 일반 모드 전환
                 isGoldMode = false;
@@ -868,8 +980,25 @@
                 goldCanvas.style.opacity = 0;
                 canvas.style.opacity = 1;
                 modeToggleButton.textContent = "골드 모드";
+                // 일반 모드일 때 모드 전환 버튼은 황금색
+                modeToggleButton.style.backgroundColor = "gold";
+                modeToggleButton.style.color = "#000";
             }
         });
+        
+        /////////////// 별 효과 생성 (골드모드 전용) ///////////////
+        const starContainer = document.getElementById('starContainer');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            // 각 별에 대해 랜덤한 애니메이션 지속시간과 딜레이 부여
+            const riseDuration = 10 + Math.random() * 10; // 10~20초
+            const twinkleDuration = 2 + Math.random() * 2;  // 2~4초
+            star.style.animationDuration = `${riseDuration}s, ${twinkleDuration}s`;
+            star.style.animationDelay = Math.random() * 10 + 's';
+            starContainer.appendChild(star);
+        }
     </script>
 </body>
 </html>
