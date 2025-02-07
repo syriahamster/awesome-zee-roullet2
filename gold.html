@@ -66,7 +66,37 @@
                 filter: brightness(1);
             }
         }
-        /* 별 효과 (골드모드 전용) */
+        /* 별 효과: 별은 화면의 임의 위치에서 생성되어 천천히 위로 이동하며, 아웃 글로우 효과가 커졌다가 사라지고, 완전히 사라지면 제거됨 */
+        .star {
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            background: white;
+            border-radius: 50%;
+        }
+        @keyframes starAnimation {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(0.5);
+                box-shadow: 0 0 0px rgba(255, 255, 255, 0);
+            }
+            20% {
+                opacity: 1;
+                transform: translateY(-10px) scale(1);
+                box-shadow: 0 0 10px rgba(255, 255, 255, 1);
+            }
+            80% {
+                opacity: 1;
+                transform: translateY(-50px) scale(1);
+                box-shadow: 0 0 10px rgba(255, 255, 255, 1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(1);
+                box-shadow: 0 0 0px rgba(255, 255, 255, 0);
+            }
+        }
+        /* 별 효과 컨테이너 (골드모드 전용) */
         #starContainer {
             position: fixed;
             top: 0;
@@ -79,38 +109,6 @@
         }
         body.gold-mode #starContainer {
             display: block;
-        }
-        .star {
-            position: absolute;
-            width: 3px;
-            height: 3px;
-            background: white;
-            border-radius: 50%;
-            opacity: 0;
-            animation-name: rise, twinkle;
-            animation-iteration-count: infinite, infinite;
-            animation-timing-function: linear, ease-in-out;
-        }
-        @keyframes rise {
-            0% {
-                transform: translateY(100vh);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-10vh);
-                opacity: 0;
-            }
-        }
-        @keyframes twinkle {
-            0%, 100% {
-                opacity: 0.8;
-            }
-            50% {
-                opacity: 1;
-            }
         }
         /* 타이틀 */
         .title {
@@ -988,17 +986,27 @@
         
         /////////////// 별 효과 생성 (골드모드 전용) ///////////////
         const starContainer = document.getElementById('starContainer');
-        for (let i = 0; i < 100; i++) {
+        function spawnStar() {
             const star = document.createElement('div');
             star.className = 'star';
+            // 별은 화면의 랜덤한 위치에 생성
             star.style.left = Math.random() * 100 + '%';
-            // 각 별에 대해 랜덤한 애니메이션 지속시간과 딜레이 부여
-            const riseDuration = 10 + Math.random() * 10; // 10~20초
-            const twinkleDuration = 2 + Math.random() * 2;  // 2~4초
-            star.style.animationDuration = `${riseDuration}s, ${twinkleDuration}s`;
-            star.style.animationDelay = Math.random() * 10 + 's';
+            star.style.top = Math.random() * 100 + '%';
+            // 애니메이션 지속시간은 5~10초 (랜덤)
+            const duration = 5 + Math.random() * 5;
+            star.style.animation = `starAnimation ${duration}s linear forwards`;
+            // 애니메이션이 끝나면 별 제거
+            star.addEventListener('animationend', () => {
+                star.remove();
+            });
             starContainer.appendChild(star);
         }
+        // 0.5초마다 별의 개수가 100개 미만이면 새 별 생성
+        setInterval(() => {
+            if (starContainer.childElementCount <= 777) {
+                spawnStar();
+            }
+        }, 500);
     </script>
 </body>
 </html>
