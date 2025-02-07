@@ -37,7 +37,7 @@
         body.gold-mode {
             background: repeating-linear-gradient(
                     0deg,
-                    /* 밝은 금빛 스트라이프 */
+                    /* 일반모드보다 더 밝은 금빛 */
                     #fff8dc,
                     #fff8dc 50px,
                     #ffd700 50px,
@@ -66,10 +66,10 @@
                 filter: brightness(1);
             }
         }
-        /* 별 효과: 별은 화면의 임의 위치에서 생성되어 천천히 위로 이동하며, 아웃 글로우 효과가 커졌다가 사라지고, 완전히 사라지면 제거됨 */
+        /* 별 효과: 별이 화면의 임의 위치에서 생성되어 아웃 글로우 효과가 커졌다가 서서히 사라지며, 완전히 사라지면 제거됨 */
         .star {
             position: absolute;
-            width: 7px;
+            width: 7px;  /* 별 크기 7x7 픽셀 */
             height: 7px;
             background: white;
             border-radius: 50%;
@@ -108,6 +108,22 @@
             display: none;
         }
         body.gold-mode #starContainer {
+            display: block;
+        }
+        /* 골드 돌림판 우측 당첨 확률 안내 */
+        #goldProbability {
+            position: absolute;
+            top: 50%;
+            right: 5%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.5em;
+            display: none;
+            z-index: 105;
+        }
+        body.gold-mode #goldProbability {
             display: block;
         }
         /* 타이틀 */
@@ -390,8 +406,18 @@
         <button id="spinButton">돌리기!</button>
         <!-- 골드 모드 돌리기 버튼 (금빛 버튼) -->
         <button id="goldSpinButton">골드돌리기</button>
-        <!-- 모드 전환 버튼 -->
+        <!-- 모드 전환 버튼 (일반 모드일 때 황금색 버튼; 우측에 위치) -->
         <button id="modeToggleButton">골드 모드</button>
+    </div>
+    
+    <!-- 골드 돌림판 우측 당첨 확률 안내 -->
+    <div id="goldProbability">
+        <h2>당첨 확률 안내</h2>
+        <p>1등: 1%</p>
+        <p>2등: 4%</p>
+        <p>3등: 15%</p>
+        <p>4등: 30%</p>
+        <p>5등: 50%</p>
     </div>
     
     <!-- 결과 모달 -->
@@ -436,7 +462,8 @@
             <h1>골드 설정</h1>
             <form id="goldSettingsForm">
                 <label for="goldItemsInput">아이템 목록 (콤마로 구분):</label>
-                <textarea id="goldItemsInput" rows="3"></textarea>
+                <!-- 기본값 변경: 1등,2등,3등,4등,5등 -->
+                <textarea id="goldItemsInput" rows="3">1등,2등,3등,4등,5등</textarea>
                 <label for="goldDurationInput">돌림판 회전 시간 (ms):</label>
                 <input type="number" id="goldDurationInput" min="1000" step="100">
                 <label for="goldTextSizeInput">돌림판 텍스트 크기 (px):</label>
@@ -446,6 +473,7 @@
                 <label for="goldPointerColorInput">포인터 색상:</label>
                 <input type="color" id="goldPointerColorInput">
                 <label for="goldWeightsInput">돌림판 아이템 확률 (콤마로 구분):</label>
+                <!-- 기본 확률: 1,4,15,30,50 -->
                 <input type="text" id="goldWeightsInput">
                 <label for="goldReverseDurationInput">돌림판 반대쪽 회전 딜레이 (ms):</label>
                 <input type="number" id="goldReverseDurationInput" min="0" step="10">
@@ -732,8 +760,9 @@
         idleSpin();
         
         /////////////// 골드 돌림판 전용 변수 및 함수 ///////////////
-        const defaultGoldItems = "골드 엽서 2장,골드 엽서 3장,골드 스티커 1장,골드 스티커 2장,골드 포스터 1장,골드 책갈피 1개";
-        const defaultGoldWeights = "1,1,1,1,1,1";
+        // 기본 아이템(섹터)와 확률을 변경: 1등~5등, 기본 확률 1,4,15,30,50
+        const defaultGoldItems = "1등,2등,3등,4등,5등";
+        const defaultGoldWeights = "1,4,15,30,50";
         const defaultGoldReverseDuration = "250";
         
         if (!localStorage.getItem("gold_items")) {
@@ -966,7 +995,7 @@
                 goldCanvas.style.opacity = 1;
                 canvas.style.opacity = 0;
                 modeToggleButton.textContent = "일반 돌림판";
-                // 모드 전환 버튼은 일반 모드로 돌아갈 때에는 무난한 디자인
+                // 모드 전환 버튼은 일반 모드로 돌아갈 때 무난한 디자인
                 modeToggleButton.style.backgroundColor = "#ccc";
                 modeToggleButton.style.color = "#333";
             } else {
@@ -1001,12 +1030,30 @@
             });
             starContainer.appendChild(star);
         }
-        // 0.5초마다 별의 개수가 100개 미만이면 새 별 생성
+        // 0.5초마다 별의 개수가 777개 미만이면 새 별 생성
         setInterval(() => {
-            if (starContainer.childElementCount <= 777) {
+            if (starContainer.childElementCount < 777) {
                 spawnStar();
             }
         }, 500);
+        
+        /////////////// 테스트 함수: 돌림판 100회 회전 결과를 콘솔에 출력 (일반, 골드 모드 구분) ///////////////
+        function simulateSpin(num, mode) {
+            let localWeights;
+            let results = {};
+            if (mode === "gold") {
+                localWeights = goldWeights;
+            } else {
+                localWeights = weights;
+            }
+            for (let i = 0; i < num; i++) {
+                const index = weightedRandom(localWeights);
+                results[index] = (results[index] || 0) + 1;
+            }
+            console.log(mode + " 모드 (" + num + "회) 시뮬레이션 결과:", results);
+            return results;
+        }
+        // 예: 브라우저 콘솔에서 simulateSpin(100, "normal"); 또는 simulateSpin(100, "gold");
     </script>
 </body>
 </html>
