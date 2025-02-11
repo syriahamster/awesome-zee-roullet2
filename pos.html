@@ -2,26 +2,76 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Lightweight HTML POS with Backup/Restore, Modals & Dark Mode</title>
+  <title>Lightweight HTML POS with Backup/Restore, Modals, Dark Mode & UI 개선</title>
   <style>
     /* 기본 스타일 */
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-    header { background-color: #333; color: #fff; padding: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background-color: #fff;
+      color: #000;
+    }
+    header {
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+    }
     header h1 { margin: 0 0 10px 0; }
-    /* Nav bar: 왼쪽 모드버튼, 오른쪽 백업/복원, 다크모드 토글 버튼 */
-    nav { display: flex; justify-content: space-between; align-items: center; }
-    #nav-modes button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
-    #nav-export-import button { margin-right: 5px; padding: 8px 12px; cursor: pointer; }
+    
+    /* Nav bar: 왼쪽 모드 버튼, 오른쪽 백업/복원, 다크모드 토글 버튼 */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    /* 좌측 내비게이션 (모드 버튼) */
+    #nav-modes button {
+      margin-right: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    /* 오른쪽 내비 버튼들 */
+    #nav-export-import button {
+      margin-right: 5px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    /* 선택된 내비게이션 버튼 스타일 */
+    #nav-modes button.selected {
+      background-color: #555;
+      color: #fff;
+      border: none;
+    }
+    
+    /* disabled 버튼 기본 스타일 */
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* 다크모드: disabled 버튼 스타일 */
+    body.dark-mode button:disabled {
+      background-color: #555;
+      color: #999;
+    }
     
     .section { padding: 20px; display: none; }
     .active { display: block; }
     
     /* 공용 아이템 리스트 스타일 */
     .item-list { margin-top: 20px; }
-    .item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; text-align: center; }
-    .item img { max-width: 100%; height: auto; margin-bottom: 5px; }
+    .item {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .item img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 5px;
+    }
     
-    /* 판매 모드: available items grid 스타일 */
+    /* 판매화면: available items grid 스타일 */
     #salesContainer {
       display: flex;
       flex-direction: row;
@@ -33,7 +83,7 @@
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 10px;
     }
-    /* 판매 모드: 각 아이템은 클릭 시 장바구니에 추가 */
+    /* 판매화면: 각 아이템은 클릭 시 장바구니에 추가 */
     #availableItems .item {
       cursor: pointer;
       border: 1px solid #aaa;
@@ -44,7 +94,7 @@
       background-color: #f0f0f0;
     }
     
-    /* 판매 모드: 장바구니 영역 스타일 (50% width) */
+    /* 판매화면: 장바구니 영역 (50% width) */
     #cartContainer {
       width: 50%;
       min-width: 200px;
@@ -54,7 +104,10 @@
       box-sizing: border-box;
     }
     #cartContainer h3 { margin-top: 0; }
-    .cart-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
+    .cart-item {
+      border-bottom: 1px solid #ccc;
+      padding: 5px 0;
+    }
     .cart-item button { margin: 0 2px; }
     
     /* 판매 버튼 크게 */
@@ -64,13 +117,12 @@
       margin-top: 10px;
     }
     
-    /* Modal (아이템 추가/수정) */
+    /* Modal (아이템 추가/수정) 스타일 */
     .modal {
-      display: none; 
+      display: none;
       position: fixed;
       z-index: 1000;
-      left: 0;
-      top: 0;
+      left: 0; top: 0;
       width: 100%;
       height: 100%;
       overflow: auto;
@@ -84,7 +136,10 @@
       width: 80%;
       max-width: 400px;
     }
-    .modal-content label { display: block; margin-top: 10px; }
+    .modal-content label {
+      display: block;
+      margin-top: 10px;
+    }
     .modal-content input {
       width: 100%;
       padding: 8px;
@@ -98,11 +153,15 @@
     }
     
     /* 다크모드 스타일 */
-    body.dark-mode { background-color: #121212; color: #e0e0e0; }
+    body.dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
     body.dark-mode header { background-color: #1e1e1e; color: #e0e0e0; }
     body.dark-mode nav button { background-color: #444; color: #e0e0e0; }
     body.dark-mode #cartContainer { background-color: #1e1e1e; border-color: #555; }
-    body.dark-mode .item, body.dark-mode .cart-item { border-color: #555; }
+    body.dark-mode .item,
+    body.dark-mode .cart-item { border-color: #555; }
     body.dark-mode .modal-content { background-color: #333; color: #e0e0e0; border-color: #555; }
     
     /* "새 아이템 추가" 버튼 카드 스타일 */
@@ -127,31 +186,31 @@
     <h1>Lightweight HTML POS</h1>
     <nav>
       <div id="nav-modes">
-        <button id="editModeBtn">편집 모드</button>
-        <button id="salesModeBtn">판매 모드</button>
+        <button id="editModeBtn">편집화면</button>
+        <button id="salesModeBtn">판매화면</button>
         <button id="historyModeBtn">판매내역</button>
       </div>
       <div id="nav-export-import">
         <button id="exportBtn">전체내용 백업하기</button>
         <button id="importBtn">복원하기</button>
-        <button id="darkModeToggle">다크모드 토글</button>
+        <button id="darkModeToggle">🌙 다크모드</button>
         <input type="file" id="importFile" accept="application/json" style="display: none;">
       </div>
     </nav>
   </header>
 
-  <!-- 편집 모드 -->
+  <!-- 편집화면 -->
   <div id="editMode" class="section active">
-    <h2>편집 모드</h2>
+    <h2>편집화면</h2>
     <button id="openNewItemModalBtn">＋ 새 아이템 추가</button>
     <div id="itemsList" class="item-list">
-      <!-- 아이템 목록을 grid로 표시 -->
+      <!-- 아이템 목록 (grid) -->
     </div>
   </div>
 
-  <!-- 판매 모드 -->
+  <!-- 판매화면 -->
   <div id="salesMode" class="section">
-    <h2>판매 모드</h2>
+    <h2>판매화면</h2>
     <div id="salesContainer">
       <div id="availableItems">
         <!-- 사용 가능한 상품 grid -->
@@ -159,17 +218,19 @@
       <div id="cartContainer">
         <h3>장바구니</h3>
         <div id="cart" class="cart-list"></div>
-        <div><strong>총 합계:</strong> <span id="totalPrice">0</span> 원</div>
+        <div>
+          <strong>총 합계:</strong> <span id="totalPrice">0</span> 원
+        </div>
         <button id="sellBtn">판매</button>
       </div>
     </div>
   </div>
 
-  <!-- 판매내역 (이전 판매 히스토리) -->
+  <!-- 판매내역 -->
   <div id="historyMode" class="section">
     <h2>판매내역</h2>
     <div id="historyList" class="history-list">
-      <!-- 날짜별 거래 내역 표시 -->
+      <!-- 날짜별 거래 내역 (최신 거래가 위에) -->
     </div>
   </div>
 
@@ -230,33 +291,56 @@
 
     /***** 데이터 저장 변수 *****/
     let items = [];       // 등록된 상품 목록
-    let cart = {};        // 판매모드 장바구니 (상품 id 키)
+    let cart = {};        // 판매화면 장바구니 (상품 id 키)
     let saleHistory = []; // 판매(영수증) 내역
 
     /***** 가격 포맷팅 (3자리마다 쉼표) *****/
     function formatPrice(num) { return num.toLocaleString(); }
 
-    /***** 모드 전환 및 버튼 비활성화 업데이트 *****/
+    /***** 모드 전환 및 버튼 상태 업데이트 *****/
     function updateNavButtons() {
-      // 판매모드: 등록된 상품이 없으면 비활성화
+      // 판매화면 버튼: 등록된 상품이 없으면 비활성화
       document.getElementById('salesModeBtn').disabled = (items.length === 0);
-      // 판매내역: 판매 내역이 없으면 비활성화
+      // 판매내역 버튼: 판매 내역이 없으면 비활성화
       document.getElementById('historyModeBtn').disabled = (saleHistory.length === 0);
+    }
+    function updateSelectedNav(selectedId) {
+      // 모든 모드 버튼에서 selected 클래스 제거
+      document.querySelectorAll("#nav-modes button").forEach(btn => {
+        btn.classList.remove("selected");
+      });
+      // 선택된 버튼에 selected 클래스 추가 (disabled 상태라면 추가되지 않음)
+      const selBtn = document.getElementById(selectedId);
+      if (selBtn && !selBtn.disabled) { selBtn.classList.add("selected"); }
     }
     function showSection(sectionId) {
       document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
       document.getElementById(sectionId).classList.add('active');
-      if (sectionId === 'salesMode') { renderAvailableItems(); renderCart(); }
-      else if (sectionId === 'editMode') { renderItemsList(); }
-      else if (sectionId === 'historyMode') { renderHistory(); }
+      if (sectionId === 'salesMode') {
+        renderAvailableItems();
+        renderCart();
+        updateSelectedNav("salesModeBtn");
+      } else if (sectionId === 'editMode') {
+        renderItemsList();
+        updateSelectedNav("editModeBtn");
+      } else if (sectionId === 'historyMode') {
+        renderHistory();
+        updateSelectedNav("historyModeBtn");
+      }
     }
     document.getElementById('editModeBtn').addEventListener("click", () => showSection('editMode'));
     document.getElementById('salesModeBtn').addEventListener("click", () => showSection('salesMode'));
     document.getElementById('historyModeBtn').addEventListener("click", () => showSection('historyMode'));
 
-    /***** Dark Mode 토글 *****/
-    document.getElementById('darkModeToggle').addEventListener('click', function() {
+    /***** Dark Mode 토글 (토글 상태에 따라 이모지/글자 변경) *****/
+    const darkModeToggleBtn = document.getElementById("darkModeToggle");
+    darkModeToggleBtn.addEventListener('click', function() {
       document.body.classList.toggle("dark-mode");
+      if (document.body.classList.contains("dark-mode")) {
+        darkModeToggleBtn.textContent = "☀️ 라이트모드";
+      } else {
+        darkModeToggleBtn.textContent = "🌙 다크모드";
+      }
     });
 
     /***** Modal for Add/Edit Item *****/
@@ -286,7 +370,7 @@
     }
     function closeItemModal() { document.getElementById('itemModal').style.display = "none"; }
     document.getElementById('modalCancelBtn').addEventListener('click', closeItemModal);
-
+    
     // 이미지 파일을 300×300으로 축소 후 Blob 변환
     function processImage(file, callback) {
       const reader = new FileReader();
@@ -303,7 +387,7 @@
       };
       reader.readAsDataURL(file);
     }
-
+    
     // Modal 폼 제출: add 또는 edit 처리
     document.getElementById('itemModalForm').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -317,7 +401,10 @@
         let newItem = { id: itemId, name, price, hasImage: false };
         function addNewItem() {
           items.push(newItem);
-          renderItemsList(); renderAvailableItems(); updateNavButtons(); closeItemModal();
+          renderItemsList();
+          renderAvailableItems();
+          updateNavButtons();
+          closeItemModal();
         }
         if (file) {
           processImage(file, function(blob) {
@@ -329,8 +416,14 @@
       } else if (modalMode === "edit" && editingItemId !== null) {
         let item = items.find(it => it.id === editingItemId);
         if (item) {
-          item.name = name; item.price = price;
-          function updateItem() { renderItemsList(); renderAvailableItems(); updateNavButtons(); closeItemModal(); }
+          item.name = name;
+          item.price = price;
+          function updateItem() {
+            renderItemsList();
+            renderAvailableItems();
+            updateNavButtons();
+            closeItemModal();
+          }
           if (file) {
             processImage(file, function(blob) {
               item.hasImage = true;
@@ -345,7 +438,6 @@
     document.getElementById('openNewItemModalBtn').addEventListener('click', function() {
       openItemModal("add");
     });
-
     // 아이템 수정 시 모달 열기
     function editItem(id) {
       const item = items.find(it => it.id === id);
@@ -354,10 +446,12 @@
     // 아이템 삭제
     function deleteItem(id) {
       items = items.filter(it => it.id !== id);
-      renderItemsList(); renderAvailableItems(); updateNavButtons();
+      renderItemsList();
+      renderAvailableItems();
+      updateNavButtons();
     }
-
-    /***** 판매 모드: 상품 및 장바구니 관리 *****/
+    
+    /***** 판매화면: 상품 및 장바구니 관리 *****/
     function renderAvailableItems() {
       const availableDiv = document.getElementById('availableItems');
       availableDiv.innerHTML = '';
@@ -460,24 +554,23 @@
       const receipt = { id: Date.now(), time: timestamp, items: cartItems, total: totalAmount };
       saleHistory.push(receipt);
       alert("판매가 완료되었습니다. 영수증이 생성되었습니다.");
-      cart = {}; renderCart(); updateNavButtons();
+      cart = {};
+      renderCart();
+      updateNavButtons();
     });
-
-    /***** 판매내역 (판매 히스토리) 렌더링 (최신 거래가 먼저 보이도록 정렬) *****/
+    
+    /***** 판매내역 렌더링 (최신 거래가 먼저 보이도록) *****/
     function renderHistory() {
       const historyDiv = document.getElementById('historyList');
       historyDiv.innerHTML = '';
       let grouped = {};
       saleHistory.forEach(receipt => {
-        // receipt.time은 Date 객체로 복원되어 있어야 함
         let dateStr = receipt.time.toISOString().split('T')[0];
         if (!grouped[dateStr]) { grouped[dateStr] = []; }
         grouped[dateStr].push(receipt);
       });
-      // 날짜별 키를 내림차순 정렬 (최신 날짜가 먼저)
       let dateKeys = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
       dateKeys.forEach(date => {
-        // 각 날짜 내 거래도 내림차순 정렬 (최신 거래가 먼저)
         let receipts = grouped[date].sort((a, b) => b.time - a.time);
         const totalForDate = receipts.reduce((sum, r) => sum + r.total, 0);
         const dateDiv = document.createElement('div');
@@ -515,22 +608,24 @@
       renderHistory();
       updateNavButtons();
     }
-
-    /***** 전체내용 백업하기 / 복원하기 기능 *****/
+    
+    /***** 전체내용 백업하기 / 복원하기 *****/
     function exportData() {
       const data = { items: items, saleHistory: saleHistory };
       const dataStr = JSON.stringify(data, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'pos_data.json';
-      a.click(); URL.revokeObjectURL(url);
+      a.href = url;
+      a.download = 'pos_data.json';
+      a.click();
+      URL.revokeObjectURL(url);
     }
     function importData(e) {
       const file = e.target.files[0];
       if (!file) return;
       if (!confirm("기존 데이터가 모두 삭제됩니다. 계속 진행하시겠습니까?")) {
-        e.target.value = ""; // 파일 선택값 초기화
+        e.target.value = "";
         return;
       }
       const reader = new FileReader();
@@ -538,18 +633,21 @@
         try {
           const importedData = JSON.parse(event.target.result);
           if (importedData.items && importedData.saleHistory) {
-            // 복원 시, 각 거래의 time 값을 Date 객체로 변환
             importedData.saleHistory.forEach(receipt => {
               receipt.time = new Date(receipt.time);
             });
             items = importedData.items;
             saleHistory = importedData.saleHistory;
-            renderItemsList(); renderAvailableItems(); renderHistory();
+            renderItemsList();
+            renderAvailableItems();
+            renderHistory();
             alert('데이터가 성공적으로 복구되었습니다.');
             updateNavButtons();
           } else { alert('잘못된 데이터 형식입니다.'); }
-        } catch(err) { alert('데이터 복구 중 오류가 발생했습니다.'); }
-        e.target.value = ""; // 파일 입력 초기화
+        } catch(err) {
+          alert('데이터 복구 중 오류가 발생했습니다.');
+        }
+        e.target.value = "";
       };
       reader.readAsText(file);
     }
@@ -558,7 +656,7 @@
       document.getElementById('importFile').click();
     });
     document.getElementById('importFile').addEventListener('change', importData);
-
+    
     // 초기 버튼 상태 업데이트
     updateNavButtons();
   </script>
